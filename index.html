@@ -124,48 +124,6 @@ tbody tr.click:hover{background:var(--accent-soft)}
 html[data-theme]{--rad:8px}
 html[data-theme] body{font-family:var(--font,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif)}
 
-/* ===== 1 · CORPORATIVO SOBRIO ===== */
-html[data-theme="corporativo"]{
-  --bg:#eef1f5;--card:#fff;--ink:#16202e;--mute:#5d6b7e;--line:#d5dbe3;--grid:#e8ecf1;
-  --accent:#1e3a5f;--accent-soft:rgba(30,58,95,.12);--pos:#1e3a5f;--neg:#6f8fae;--today:#b7791f;
-  --c1:#1e3a5f;--c2:#5b7c99;--c3:#a07a3a;--c4:#4a5568;--bad:#9b1c31;--bad-soft:rgba(155,28,49,.10);--c5:#6b5b95;--c6:#a05a6a;--c7:#94a3b8;
-  --rad:3px;--font:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
-html[data-theme="corporativo"] h1{margin:-20px -16px 0;padding:22px 16px 4px;background:var(--accent);color:#fff;font-size:21px;font-weight:600;letter-spacing:.01em;box-shadow:0 0 0 100vmax var(--accent);clip-path:inset(0 -100vmax)}
-html[data-theme="corporativo"] .sub{margin:0 -16px 18px;padding:0 16px 18px;background:var(--accent);color:rgba(255,255,255,.72);box-shadow:0 0 0 100vmax var(--accent);clip-path:inset(0 -100vmax)}
-html[data-theme="corporativo"] .themebar{top:18px;color:rgba(255,255,255,.8)}
-html[data-theme="corporativo"] .card{border-radius:3px;border:1px solid var(--line);border-top:3px solid var(--accent);box-shadow:0 1px 2px rgba(22,32,46,.06)}
-html[data-theme="corporativo"] .kpi{border-top:1px solid var(--line);border-left:4px solid var(--accent)}
-html[data-theme="corporativo"] .kpi.mora{border-left-color:var(--bad);border-top-color:var(--bad)}
-html[data-theme="corporativo"] .kpi .v{font-size:20px;font-weight:600;color:var(--accent)}
-html[data-theme="corporativo"] .chead h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);font-weight:700}
-html[data-theme="corporativo"] .seg,html[data-theme="corporativo"] .seg button,html[data-theme="corporativo"] .chip,html[data-theme="corporativo"] .combo input,html[data-theme="corporativo"] .hbtn{border-radius:3px}
-html[data-theme="corporativo"] .seg button.on{background:var(--accent);color:#fff}
-html[data-theme="corporativo"] .chip.on{background:var(--accent);color:#fff}
-html[data-theme="corporativo"] th{background:var(--bg);border-bottom:2px solid var(--accent);color:var(--accent)}
-
-/* ===== 2 · VERDE BANCA ===== */
-html[data-theme="verde"]{
-  --bg:#eaf4ee;--card:#fff;--ink:#0f2219;--mute:#5a7568;--line:#d3e5db;--grid:#e6f0ea;
-  --accent:#0f7b5f;--accent-soft:rgba(15,123,95,.12);--pos:#0f7b5f;--neg:#3b82a0;--today:#f59e0b;
-  --c1:#0f7b5f;--c2:#3b82a0;--c3:#d9a21b;--c4:#7a5c3e;--bad:#e5484d;--bad-soft:rgba(229,72,77,.10);--c5:#6d5acd;--c6:#d6336c;--c7:#8a9a92;
-  --rad:14px;--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-html[data-theme="verde"] body{background:linear-gradient(180deg,#cfeadb 0,var(--bg) 300px) no-repeat,var(--bg)}
-html[data-theme="verde"] h1{color:#0a5a45;font-size:24px;font-weight:700}
-html[data-theme="verde"] .card{border:0;border-radius:18px;box-shadow:0 2px 14px rgba(15,90,60,.09)}
-html[data-theme="verde"] .kpi{border-radius:16px;position:relative;overflow:hidden}
-html[data-theme="verde"] .kpi::before{content:"";position:absolute;left:0;top:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),#5fd3a6)}
-html[data-theme="verde"] .kpi.mora::before{background:linear-gradient(90deg,var(--bad),#ff9a8a)}
-html[data-theme="verde"] .kpi .v{font-size:22px;color:var(--accent);font-weight:700}
-html[data-theme="verde"] .kpi.mora{border:0}
-html[data-theme="verde"] .seg{border:0;background:var(--bg);border-radius:999px;padding:3px}
-html[data-theme="verde"] .seg button{border:0;border-radius:999px;background:transparent}
-html[data-theme="verde"] .seg button.on{background:var(--accent);color:#fff;box-shadow:0 1px 4px rgba(15,123,95,.35)}
-html[data-theme="verde"] .chip,html[data-theme="verde"] .hbtn{border-radius:999px}
-html[data-theme="verde"] .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-html[data-theme="verde"] .combo input{border-radius:12px;background:var(--card);border-color:var(--line)}
-html[data-theme="verde"] th{color:var(--accent)}
-html[data-theme="verde"] .mbox,html[data-theme="verde"] .rpanel,html[data-theme="verde"] .list{border-radius:16px}
-
 /* ===== 3 · EDITORIAL MINIMALISTA ===== */
 html[data-theme="editorial"]{
   --bg:#faf7f1;--card:#faf7f1;--ink:#1f1b16;--mute:#7a7165;--line:#ddd5c8;--grid:#ece6da;
@@ -222,7 +180,7 @@ body.viewer #dataBody,body.viewer #btnData{display:none !important}
 #btnReset{display:none}
 #who{font-size:12px}
 </style>
-<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('tema')||'corporativo')}catch(e){document.documentElement.setAttribute('data-theme','corporativo')}</script>
+<script>(function(){var ok=['original','editorial','terminal'],t='original';try{t=localStorage.getItem('tema')||'original'}catch(e){} if(ok.indexOf(t)<0)t='original';document.documentElement.setAttribute('data-theme',t)})()</script>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
 </head>
@@ -234,11 +192,9 @@ body.viewer #dataBody,body.viewer #btnData{display:none !important}
   <button class="hbtn pri" id="authGo">Ingresar</button><a href="#" id="authForgot" style="font-size:12px;color:var(--mute)">¿Olvidaste tu contraseña? / Primera vez: elegir contraseña</a><div class="note" id="authMsg" style="margin:0"></div></div></div>
 <div class="wrap">
   <div class="themebar"><span id="who"></span><button class="hbtn" id="btnOut" style="padding:4px 10px">Salir</button><label for="themeSel">Diseño</label><select id="themeSel">
-    <option value="corporativo">Corporativo sobrio</option>
-    <option value="verde">Verde banca</option>
+    <option value="original">Original</option>
     <option value="editorial">Editorial minimalista</option>
     <option value="terminal">Terminal oscuro</option>
-    <option value="original">Original</option>
   </select></div>
   <h1>Evolución de deuda por librador</h1>
   <p class="sub" id="sub"></p>
@@ -275,8 +231,8 @@ body.viewer #dataBody,body.viewer #btnData{display:none !important}
   </div>
 
   <div class="card chartcard">
-    <div class="chead"><h2>Tomas y vencimientos por mes</h2>
-      <div class="seg" id="segGran"><button data-v="m" class="on">Mensual</button><button data-v="w">Semanal</button></div></div>
+    <div class="chead"><h2 id="h2Flows">Tomas y vencimientos por mes</h2>
+      <div class="seg" id="segGran"><button data-v="m" class="on">Mensual</button><button data-v="w">Semanal</button><button data-v="d">Diario</button></div></div>
     <div class="cv" id="cv2"><canvas id="c2" height="190"></canvas><div class="tip" id="tip2"></div></div>
     <div class="legend"><span><i style="background:var(--pos)"></i>Toma de deuda (concertación)</span><span><i style="background:var(--neg)"></i>Cancelación (fecha de cobro)</span><span>Las barras claras son futuras (proyectadas).</span></div>
   </div>
@@ -473,11 +429,13 @@ function drawMain(C){
 function drawFlows(C){
   const cv=$('c2'); const {c,w,h}=setup(cv);
   if(!C.rows.length){ G2=null; return; }
-  const d0=C.minD-(S.gran==='w'?5:16), d1=Math.max(d0+1,Math.min(C.maxD,todayD+S.fut));
-  const bucket=d=>{ if(S.gran==='w'){ return d-((d+3)%7); } const t=new Date(d*DAY); return Date.UTC(t.getUTCFullYear(),t.getUTCMonth(),1)/DAY; };
+  const gr=S.gran; $('h2Flows').textContent='Tomas y vencimientos por '+(gr==='d'?'día':gr==='w'?'semana':'mes');
+  /* sigue el rango de fechas elegido arriba (si hay uno) */
+  const d0=S.r0!=null?S.r0:C.minD-(gr==='w'?5:gr==='d'?1:16); const d1=Math.max(d0+1,S.r1!=null?S.r1:Math.min(C.maxD,todayD+S.fut));
+  const bucket=d=>{ if(gr==='d') return d; if(gr==='w'){ return d-((d+3)%7); } const t=new Date(d*DAY); return Date.UTC(t.getUTCFullYear(),t.getUTCMonth(),1)/DAY; };
   const B=new Map(); C.rows.forEach(r=>{
-    if(r.c<=d1){ const k=bucket(r.c); const b=B.get(k)||{i:0,o:0}; b.i+=r.m; B.set(k,b); }
-    if(r.k<=d1){ const k=bucket(r.k); const b=B.get(k)||{i:0,o:0}; b.o+=r.m; B.set(k,b); } });
+    if(r.c>=d0&&r.c<=d1){ const k=bucket(r.c); const b=B.get(k)||{i:0,o:0}; b.i+=r.m; B.set(k,b); }
+    if(r.k>=d0&&r.k<=d1){ const k=bucket(r.k); const b=B.get(k)||{i:0,o:0}; b.o+=r.m; B.set(k,b); } });
   const ks=[...B.keys()].sort((a,b)=>a-b);
   let mx=0; B.forEach(b=>{mx=Math.max(mx,b.i,b.o);});
   const ticks=niceTicks(mx*1.05,3); mx=ticks[ticks.length-1];
@@ -487,9 +445,10 @@ function drawFlows(C){
   c.font='11px system-ui'; c.textAlign='right'; c.textBaseline='middle';
   ticks.forEach(t=>{ [t,-t].forEach(v=>{ if(t===0&&v<0)return; c.strokeStyle=cssv('--grid'); c.beginPath(); c.moveTo(M.l,Y(v)); c.lineTo(w-M.r,Y(v)); c.stroke(); c.fillStyle=cssv('--mute'); c.fillText((v<0?'−':'')+short(t).replace('$ ',''),M.l-8,Y(v)); }); });
   c.textAlign='center'; c.textBaseline='top';
-  timeTicks(d0,d1).forEach(t=>{ c.fillStyle=cssv('--mute'); c.fillText(t.l,X(t.d),h-M.b+8); });
-  const span=S.gran==='w'?7:30.4; const bw=Math.max(2,(w-M.l-M.r)/((d1-d0)/span+1)*0.7);
-  ks.forEach(k=>{ const b=B.get(k); const fut=k>todayD; const x=X(k)-bw/2;
+  if(gr==='d'&&d1-d0<=75){ const st=d1-d0<=20?1:d1-d0<=40?2:7; for(let d=d0+((7-((d0+3)%7))%7); d<=d1; d+=st){ const t=new Date(d*DAY); c.fillStyle=cssv('--mute'); c.fillText(String(t.getUTCDate()).padStart(2,'0')+'/'+String(t.getUTCMonth()+1).padStart(2,'0'),X(d),h-M.b+8); } }   /* diario con poco rango: marcas por día/semana */
+  else timeTicks(d0,d1).forEach(t=>{ c.fillStyle=cssv('--mute'); c.fillText(t.l,X(t.d),h-M.b+8); });
+  const span=gr==='w'?7:gr==='d'?1:30.4; const bw=Math.max(gr==='d'?1.5:2,(w-M.l-M.r)/((d1-d0)/span+1)*0.7);
+  ks.forEach(k=>{ const b=B.get(k); const fut=k>todayD; const x=Math.max(M.l,X(k)-bw/2); if(x>w-M.r) return;
     c.globalAlpha=fut?.4:.9;
     c.fillStyle=cssv('--pos'); c.fillRect(x,Y(b.i),bw,mid-Y(b.i));
     c.fillStyle=cssv('--neg'); c.fillRect(x,mid,bw,Y(-b.o)-mid); });
@@ -517,8 +476,8 @@ bindTip('c1','tip1',x=>{ const g=G1; if(!g) return null;
   if(g.stack) h+=g.layers.map(L=>'<div class="r"><span><span class="dot" style="background:'+L.col+'"></span>'+esc(L.name.length>26?L.name.slice(0,25)+'…':L.name)+'</span><span>'+money(L.v[i])+'</span></div>').join('');
   h+='<div class="r" style="margin-top:4px;color:var(--mute)"><span>Tomas ese día</span><span>'+money(C.inn[i])+'</span></div><div class="r" style="color:var(--mute)"><span>Cancelaciones ese día</span><span>'+money(C.out[i])+'</span></div>';
   return {h,x:g.X(C.days[i])}; });
-bindTip('c2','tip2',x=>{ const g=G2; if(!g) return null; const d=g.d0+(x-M.l)/(g.w-M.l-M.r)*(g.d1-g.d0); let best=null,bd=1e9; g.ks.forEach(k=>{const dd=Math.abs(k-d); if(dd<bd){bd=dd;best=k;}}); if(best==null||bd>(S.gran==='w'?7:20)) return null; const b=g.B.get(best);
-  const t=new Date(best*DAY); const lab=S.gran==='w'?'Semana del '+fmtDate(best):MESES[t.getUTCMonth()]+' '+t.getUTCFullYear();
+bindTip('c2','tip2',x=>{ const g=G2; if(!g) return null; const d=g.d0+(x-M.l)/(g.w-M.l-M.r)*(g.d1-g.d0); let best=null,bd=1e9; g.ks.forEach(k=>{const dd=Math.abs(k-d); if(dd<bd){bd=dd;best=k;}}); if(best==null||bd>(S.gran==='w'?7:S.gran==='d'?1.5:20)) return null; const b=g.B.get(best);
+  const t=new Date(best*DAY); const lab=S.gran==='w'?'Semana del '+fmtDate(best):S.gran==='d'?['dom','lun','mar','mié','jue','vie','sáb'][t.getUTCDay()]+' '+fmtDate(best):MESES[t.getUTCMonth()]+' '+t.getUTCFullYear();
   return {h:'<b>'+lab+(best>todayD?' · proyectado':'')+'</b><div class="r"><span><span class="dot" style="background:var(--pos)"></span>Tomas</span><span>'+money(b.i)+'</span></div><div class="r"><span><span class="dot" style="background:var(--neg)"></span>Cancelaciones</span><span>'+money(b.o)+'</span></div><div class="r"><span>Neto</span><span>'+money(b.i-b.o)+'</span></div>',x:g.X(best)}; });
 
 // ---------- hitos ----------
@@ -725,7 +684,7 @@ const sb = (typeof supabase!=='undefined' && !/TU-PROYECTO/.test(SUPABASE_URL)) 
 let USER=null, IS_ADMIN=false;
 async function authInit(){
   const box=$('auth'), msg=$('authMsg');
-  if(!sb){ box.style.display='flex'; msg.textContent='Falta completar SUPABASE_URL y SUPABASE_ANON_KEY al inicio del archivo.'; return false; }
+  if(!sb){ box.style.display='flex'; msg.textContent=(typeof supabase==='undefined')?'No se pudo cargar la librería de Supabase (¿la red de la empresa la bloquea?). Probá recargar con Ctrl+F5.':'No se encontró la configuración de Supabase. Verificá que el archivo config.js esté subido junto a index.html (misma carpeta) con tu URL y tu clave pública, y recargá con Ctrl+F5.'; return false; }
   const hq=new URLSearchParams(INIT_HASH.replace(/^#/,'')); const pwFlow=/^(invite|recovery)$/.test(hq.get('type')||''); const hashErr=hq.get('error_description');
   let ses=(await sb.auth.getSession()).data.session;
   if(ses&&pwFlow){ /* llegó desde un email de invitación o recuperación: elegir contraseña */
@@ -939,7 +898,7 @@ $('btnReset').onclick=async()=>{ if(!confirm('¿Descartar lo que cargaste y volv
 window.addEventListener('resize',()=>{ if(window._C){ drawMain(window._C); drawFlows(window._C);} });
 matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>update());
 
-(function(){ const sel=document.getElementById('themeSel'); sel.value=document.documentElement.getAttribute('data-theme')||'corporativo';
+(function(){ const sel=document.getElementById('themeSel'); sel.value=document.documentElement.getAttribute('data-theme')||'original';
   sel.addEventListener('change',()=>{ document.documentElement.setAttribute('data-theme',sel.value); try{localStorage.setItem('tema',sel.value)}catch(e){} if(window._C){ drawMain(window._C); drawFlows(window._C); } }); })();
 </script>
 </body>
