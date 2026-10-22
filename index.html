@@ -223,12 +223,15 @@ body.viewer #dataBody,body.viewer #btnData{display:none !important}
 #who{font-size:12px}
 </style>
 <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('tema')||'corporativo')}catch(e){document.documentElement.setAttribute('data-theme','corporativo')}</script>
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
 </head>
 <body>
-<div class="authwrap" id="auth"><div class="authbox"><h2>Ingresar</h2><p>Evolución de deuda por librador</p>
+<div id="ghBanner" style="display:none;position:fixed;left:50%;top:12px;transform:translateX(-50%);background:var(--accent);color:#fff;padding:8px 16px;border-radius:999px;z-index:90;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.2)"></div>
+<div class="authwrap" id="auth"><div class="authbox"><h2 id="authTitle">Ingresar</h2><p>Evolución de deuda por librador</p>
   <input id="authEmail" type="email" placeholder="Email" autocomplete="username"><input id="authPass" type="password" placeholder="Contraseña" autocomplete="current-password">
-  <button class="hbtn pri" id="authGo">Ingresar</button><div class="note" id="authMsg" style="margin:0"></div></div></div>
+  <input id="authPass2" type="password" placeholder="Repetí la contraseña" autocomplete="new-password" style="display:none">
+  <button class="hbtn pri" id="authGo">Ingresar</button><a href="#" id="authForgot" style="font-size:12px;color:var(--mute)">¿Olvidaste tu contraseña? / Primera vez: elegir contraseña</a><div class="note" id="authMsg" style="margin:0"></div></div></div>
 <div class="wrap">
   <div class="themebar"><span id="who"></span><button class="hbtn" id="btnOut" style="padding:4px 10px">Salir</button><label for="themeSel">Diseño</label><select id="themeSel">
     <option value="corporativo">Corporativo sobrio</option>
@@ -287,8 +290,9 @@ body.viewer #dataBody,body.viewer #btnData{display:none !important}
 
   <div class="card" style="margin-top:12px" id="dataCard">
     <div class="chead" style="margin-bottom:4px"><h2>Datos</h2>
-      <button class="chip" id="btnData">Actualizar datos</button></div>
+      <button class="chip" id="btnData">Actualizar datos</button><button class="chip" id="btnReload">Recargar datos</button></div>
     <div class="status" id="status"></div>
+    <div class="note" id="ghInfo" style="margin-top:8px">Para actualizar: subí los Excel a la carpeta <b>datos/</b> del repositorio en GitHub (Add file → Upload files). Se leen solos al abrir o recargar esta página. Ponele la fecha al nombre de los export de pagarés y echeqs (por ejemplo <b>echeq_export_21_10_2026.xlsx</b>).</div>
     <div id="dataBody" style="display:none;margin-top:10px">
       <label class="drop" id="drop"><input type="file" id="file" accept=".xlsx,.xlsm,.xls" multiple>
         <b>Arrastrá acá los Excel del día</b> o hacé clic para elegirlos<br>
@@ -403,7 +407,11 @@ function compute(){
 }
 
 // ---------- chart helpers ----------
-function setup(canvas){ const dpr=window.devicePixelRatio||1, w=canvas.clientWidth, h=+canvas.getAttribute('height'); canvas.width=w*dpr; canvas.height=h*dpr; const c=canvas.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); return {c,w,h}; }
+function setup(canvas){ const dpr=window.devicePixelRatio||1, w=canvas.clientWidth;
+  /* alto lógico guardado aparte: canvas.height se multiplicaba por el zoom/escala de pantalla en cada redibujo */
+  if(!canvas.dataset.h0) canvas.dataset.h0=canvas.getAttribute('height');
+  const h0=+canvas.dataset.h0; const h=canvas.id==='c1'?Math.max(280,Math.min(440,Math.round(window.innerHeight*0.5))):h0; /* el gráfico principal se adapta a la altura de la ventana */
+  canvas.style.height=h+'px'; canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr); const c=canvas.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); return {c,w,h}; }
 function niceTicks(max,n){ if(max<=0) return [0,1]; const raw=max/n, p=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/p, s=(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p; const t=[]; for(let v=0;v<=max+s*0.99;v+=s) t.push(v); return t; }
 function timeTicks(d0,d1,w){ const out=[]; const a=new Date(d0*DAY), b=new Date(d1*DAY); const span=d1-d0; const step = span>900?6:span>420?3:span>200?2:1;
   let y=a.getUTCFullYear(), m=a.getUTCMonth(); m=Math.ceil(m/step)*step; if(m>=12){m-=12;y++;}
@@ -518,7 +526,7 @@ let HITOS=[]; let editing=null;
 const isoDay=d=>new Date(d*DAY).toISOString().slice(0,10);
 const dayIso=s=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m?Date.UTC(+m[1],+m[2]-1,+m[3])/DAY:null; };
 function curScope(){ return {com:S.com!=null?D.com[S.com]:null, lib:S.lib!=null?D.lib[S.lib]:null}; }
-function hitosVisible(){ const sc=curScope(); return HITOS.filter(h=>(h.com==null||h.com===sc.com)&&(h.lib==null||h.lib===sc.lib)).sort((a,b)=>a.d-b.d); }
+function hitosVisible(){ const sc=curScope(); return HITOS.filter(h=>(h.com==null||lkey(h.com)===lkey(sc.com))&&(h.lib==null||lkey(h.lib)===lkey(sc.lib))).sort((a,b)=>a.d-b.d); }
 async function saveHitos(){}
 function renderHitos(){
   const el=$('hlist'); const HV=hitosVisible();
@@ -693,6 +701,12 @@ function setData(reg,snaps,snapp){
     cnt.forEach((g,k)=>{ let best=null; g.forEach((c,i)=>{ const n=D.lib[i]; if(best==null||c>best.c||(c===best.c&&n.length<best.n.length)) best={c,n,i}; }); CANON.set(k,best.n); from+=g.size; to+=1; });
     R.forEach(r=>{ const n=CANON.get(lkey(D.lib[r.lib])); if(n&&D.lib[r.lib]!==n) r.lib=idxOf(D.lib,n); });
     META.lgroup={from,to}; }
+  // Lo mismo para comitentes (VITALCAN SA = VITALCAN S.A.)
+  { const cnt=new Map(); R.forEach(r=>{ const k=lkey(D.com[r.com]); let g=cnt.get(k); if(!g){ g=new Map(); cnt.set(k,g); } g.set(r.com,(g.get(r.com)||0)+1); });
+    const canon=new Map(); let from=0, to=0;
+    cnt.forEach((g,k)=>{ let best=null; g.forEach((c,i)=>{ const n=D.com[i]; if(best==null||c>best.c||(c===best.c&&n.length<best.n.length)) best={c,n,i}; }); canon.set(k,best.n); from+=g.size; to+=1; });
+    R.forEach(r=>{ const n=canon.get(lkey(D.com[r.com])); if(n&&D.com[r.com]!==n) r.com=idxOf(D.com,n); });
+    META.cgroup={from,to}; }
   buildMora();
   S.com=null; S.lib=null; S.rie=new Set(D.rie.map((_,i)=>i)); renderChips();
 }
@@ -703,37 +717,105 @@ function renderChips(){ const el=$('rieChips'); el.innerHTML='';
 // IndexedDB (persistencia en el navegador)
 function idb(){ return new Promise((res,rej)=>{ const q=indexedDB.open('deuda_librador',1); q.onupgradeneeded=()=>q.result.createObjectStore('kv'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
 // ====== CONFIGURACIÓN DE SUPABASE (completar con los datos de tu proyecto: Project Settings → API) ======
-const SUPABASE_URL = 'https://mixcjfgrtfviecjkeylf.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_IZfog7d0gDB2HWTQ_1AUCw_Ek5KMWtw';  // la "Publishable key" (sb_publishable_...) o, en proyectos viejos, la "anon public key"
+const SUPABASE_URL = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || 'https://TU-PROYECTO.supabase.co';  // se lee de config.js (o se puede escribir acá)
+const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'TU_CLAVE_PUBLICABLE';  // la "Publishable key" (sb_publishable_...) o, en proyectos viejos, la "anon public key"
 // ========================================================================================================
+const INIT_HASH = location.hash || ''; /* se captura antes de que supabase-js lo limpie */
 const sb = (typeof supabase!=='undefined' && !/TU-PROYECTO/.test(SUPABASE_URL)) ? supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY) : null;
 let USER=null, IS_ADMIN=false;
 async function authInit(){
   const box=$('auth'), msg=$('authMsg');
   if(!sb){ box.style.display='flex'; msg.textContent='Falta completar SUPABASE_URL y SUPABASE_ANON_KEY al inicio del archivo.'; return false; }
+  const hq=new URLSearchParams(INIT_HASH.replace(/^#/,'')); const pwFlow=/^(invite|recovery)$/.test(hq.get('type')||''); const hashErr=hq.get('error_description');
   let ses=(await sb.auth.getSession()).data.session;
-  if(!ses){ box.style.display='flex';
+  if(ses&&pwFlow){ /* llegó desde un email de invitación o recuperación: elegir contraseña */
+    box.style.display='flex'; $('authTitle').textContent='Elegí tu contraseña'; $('authEmail').style.display='none'; $('authPass2').style.display=''; $('authForgot').style.display='none';
+    $('authPass').placeholder='Nueva contraseña (mínimo 6 caracteres)'; $('authPass').autocomplete='new-password'; $('authGo').textContent='Guardar contraseña'; msg.textContent='Cuenta: '+ses.user.email;
+    await new Promise(res=>{ const go=async()=>{ const p=$('authPass').value; if(p.length<6){ msg.textContent='La contraseña debe tener al menos 6 caracteres.'; return; } if(p!==$('authPass2').value){ msg.textContent='Las contraseñas no coinciden.'; return; }
+        msg.textContent='Guardando…'; const r=await sb.auth.updateUser({password:p}); if(r.error){ msg.textContent='No se pudo guardar: '+r.error.message; return; } res(); };
+      $('authGo').onclick=go; $('authPass2').onkeydown=e=>{ if(e.key==='Enter') go(); }; });
+    history.replaceState(null,'',location.pathname+location.search); }
+  if(!ses){ box.style.display='flex'; if(hashErr) msg.textContent=decodeURIComponent(hashErr.replace(/\+/g,' '))+' — pedí un enlace nuevo con "¿Olvidaste tu contraseña?".';
+    $('authForgot').onclick=async e=>{ e.preventDefault(); const em=$('authEmail').value.trim(); if(!em){ msg.textContent='Escribí tu email arriba y volvé a tocar este enlace.'; return; } msg.textContent='Enviando…';
+      const r=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname}); msg.textContent=r.error?('No se pudo enviar: '+r.error.message):'Si el email tiene cuenta, te enviamos un enlace para elegir la contraseña. Revisá también el correo no deseado.'; };
     ses=await new Promise(res=>{ const go=async()=>{ msg.textContent='Ingresando…'; const r=await sb.auth.signInWithPassword({email:$('authEmail').value.trim(),password:$('authPass').value});
         if(r.error){ msg.textContent='No se pudo ingresar: '+(/invalid login/i.test(r.error.message)?'email o contraseña incorrectos':r.error.message); return; } res(r.data.session); };
       $('authGo').onclick=go; $('authPass').onkeydown=e=>{ if(e.key==='Enter') go(); }; }); }
   USER=ses.user; box.style.display='none';
-  const a=await sb.rpc('es_admin'); IS_ADMIN=a.data===true; document.body.classList.toggle('viewer',!IS_ADMIN);
+  const a=await sb.rpc('es_admin'); IS_ADMIN=a.data===true; document.body.classList.add('viewer');
   $('who').textContent=USER.email+(IS_ADMIN?' · administrador':''); $('btnOut').onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
   return true; }
-async function kvSet(k,v){ if(!IS_ADMIN) throw new Error('solo el administrador puede cargar datos'); const r=await sb.from('datos').upsert({clave:k,valor:v,actualizado:new Date().toISOString(),actualizado_por:USER.email}); if(r.error) throw r.error; }
-async function kvDel(k){ if(!IS_ADMIN) return; const r=await sb.from('datos').delete().eq('clave',k); if(r.error) throw r.error; }
-async function loadShared(){
-  REG=D0; SNAPS={}; SNAPP={}; LIBM={}; UMV={day:0,fx:null,m:{}};
-  const r=await sb.from('datos').select('clave,valor'); if(r.error) throw r.error; const got={}; (r.data||[]).forEach(x=>got[x.clave]=x.valor);
-  if(got.registry) REG=got.registry; if(got.snaps) SNAPS=got.snaps; if(got.snapsP) SNAPP=got.snapsP; if(got.libm) LIBM=got.libm; if(got.umv&&got.umv.m) UMV=got.umv; }
 async function loadHitos(){ const r=await sb.from('hitos').select('*').order('fecha',{ascending:true}); if(r.error) throw r.error;
   HITOS=(r.data||[]).map(x=>({id:x.id,d:dayIso(String(x.fecha).slice(0,10)),t:x.texto,com:x.comitente,lib:x.librador,a:x.autor_email,e:x.editado_por})); }
 async function hitoSave(h,isNew){ const row={id:h.id,fecha:isoDay(h.d),texto:h.t,comitente:h.com||null,librador:h.lib||null};
   if(isNew){ row.autor_email=USER.email; const r=await sb.from('hitos').insert(row).select(); if(r.error) throw r.error; h.a=USER.email; }
   else { row.actualizado=new Date().toISOString(); row.editado_por=USER.email; const r=await sb.from('hitos').update(row).eq('id',h.id).select(); if(r.error) throw r.error; if(!r.data||!r.data.length) throw new Error('no tenés permiso para editar este hito'); h.e=USER.email; } }
 async function hitoDelete(id){ const r=await sb.from('hitos').delete().eq('id',id).select(); if(r.error) throw r.error; if(!r.data||!r.data.length) throw new Error('solo quien creó el hito o un administrador puede eliminarlo'); }
+// ====== DATOS DESDE GITHUB (carpeta datos/ del repositorio) ======
+const GH_CFG=window.SUPABASE_CONFIG||{};
+const GH_DIR=GH_CFG.carpeta||'datos', DG_V='dg2:';
+function ghRepo(){ if(GH_CFG.repo) return GH_CFG.repo; const m=location.hostname.match(/^([^.]+)\.github\.io$/); const seg=location.pathname.split('/').filter(Boolean)[0]; return (m&&seg)?m[1]+'/'+seg:null; }
+function fechaEnNombre(n){ /* dd_mm_aaaa, aaaa_mm_dd o aaaammdd dentro del nombre del archivo */
+  const ok=(y,m,d)=>(y>=2020&&y<=2100&&m>=1&&m<=12&&d>=1&&d<=31)?Date.UTC(y,m-1,d)/DAY:null; let m,r;
+  m=n.match(/(?:^|\D)(\d{2})[._\-](\d{2})[._\-](\d{4})(?!\d)/); if(m){ r=ok(+m[3],+m[2],+m[1]); if(r!=null) return r; }
+  m=n.match(/(?:^|\D)(\d{4})[._\-](\d{2})[._\-](\d{2})(?!\d)/); if(m){ r=ok(+m[1],+m[2],+m[3]); if(r!=null) return r; }
+  m=n.match(/(?:^|\D)(\d{4})(\d{2})(\d{2})(?!\d)/); if(m){ r=ok(+m[1],+m[2],+m[3]); if(r!=null) return r; }
+  return null; }
+async function ghDigest(name,buf){ /* convierte un Excel en un resumen chico, que se guarda en caché */
+  const names=XLSX.read(buf,{type:'array',bookSheets:true}).SheetNames;
+  const pn=names.find(n=>n.trim().toLowerCase()==='cheques pendientes');
+  if(pn){ const keep=[pn].concat(names.filter(n=>/gesti/i.test(n)||/reporte de cheques/i.test(n.trim())));
+    const wb=XLSX.read(buf,{type:'array',sheets:keep}); const ru=parseReporteUMV(wb); const g=parseGestion(wb,name,ru&&ru.fx);
+    return {t:'g',day:g.day,items:g.items,umv:(ru&&ru.n)?{m:ru.m,fx:ru.fx,n:ru.n}:null}; }
+  const rsh=names.find(n=>/c-?riesgo/i.test(n)); const wb=XLSX.read(buf,Object.assign({type:'array',cellDates:false},rsh?{sheets:[rsh]}:{}));
+  const tp=parseTenencia(wb,name);
+  if(tp) return {t:'e',kind:tp.kind,libOnly:tp.libOnly,live:tp.live,n:tp.n,map:tp.map};
+  const rows=parseRegistry(wb); if(!rows) throw new Error('no reconozco el archivo (no es registro, GESTION ni export de tenencia)');
+  let maxC=0; rows.forEach(r=>{ if(r.c>maxC) maxC=r.c; });
+  return {t:'r',rows,maxC}; }
+async function ghList(repo,dir,depth,acc){
+  const r=await fetch('https://api.github.com/repos/'+repo+'/contents/'+dir.split('/').map(encodeURIComponent).join('/'),{headers:{Accept:'application/vnd.github+json'}});
+  if(r.status===404) return acc;
+  if(!r.ok){ const e=new Error('GitHub respondió '+r.status+((r.status===403||r.status===429)?' (límite de consultas por hora)':'')); throw e; }
+  const items=await r.json();
+  for(const it of items){ if(it.type==='file'&&/\.(xlsx|xlsm)$/i.test(it.name)&&!it.name.startsWith('~$')) acc.push({path:it.path,name:it.name,sha:it.sha,url:it.download_url});
+    else if(it.type==='dir'&&depth<2) await ghList(repo,it.path,depth+1,acc); }
+  return acc; }
+function ghFold(digs,errs,list){ /* arma los datos a partir de los resúmenes de cada archivo */
+  const info={archivos:list.length,errores:errs,sinFecha:[]};
+  let reg=null; digs.forEach(x=>{ if(x.d.t==='r'&&(!reg||x.d.maxC>=reg.d.maxC)) reg=x; });   // registro: el de concertación más reciente
+  if(reg){ REG=buildRegistry(reg.d.rows); info.registro=reg.f.name; }
+  const gs=digs.filter(x=>x.d.t==='g').sort((a,b)=>a.d.day-b.d.day||a.f.name.localeCompare(b.f.name));
+  gs.forEach(x=>{ SNAPS[x.d.day]=x.d.items; const u=x.d.umv; if(u&&u.n){ if(x.d.day>=(UMV.day||0)){ Object.assign(UMV.m,u.m); UMV.fx=u.fx; UMV.day=x.d.day; } else { for(const k in u.m) if(!UMV.m[k]) UMV.m[k]=u.m[k]; } } });
+  info.gestion=gs.length;
+  let latest=reg?reg.d.maxC:0; gs.forEach(x=>{ if(x.d.day>latest) latest=x.d.day; });
+  const es=digs.filter(x=>x.d.t==='e'); es.forEach(x=>{ const a=fechaEnNombre(x.f.name); if(a!=null&&a>latest) latest=a; });
+  const ee=es.map(x=>{ let a=fechaEnNombre(x.f.name); if(a==null){ a=latest||todayD; if(!x.d.libOnly) info.sinFecha.push(x.f.name); } return {asof:a,f:x.f,d:x.d}; }).sort((p,q)=>p.asof-q.asof||p.f.name.localeCompare(q.f.name));
+  const cur={};
+  ee.forEach(x=>{ Object.assign(LIBM,x.d.map); if(x.d.libOnly) return; cur[x.d.kind]=x.d.live.filter(v=>v[1]<x.asof).map(v=>[v[0],v[1],v[2],'IMPAGO (INV. PROPIO)',v[3]]); SNAPP[x.asof]=[].concat(...Object.values(cur)); });
+  info.propios=ee.filter(x=>!x.d.libOnly).length; META.gh=Object.assign(META.gh||{},info); }
+async function loadFromGitHub(){
+  const repo=ghRepo(); const ban=$('ghBanner'); const setL=t=>{ ban.textContent=t; ban.style.display=t?'block':'none'; };
+  REG=D0; SNAPS={}; SNAPP={}; LIBM={}; UMV={day:0,fx:null,m:{}}; META.gh={};
+  if(!repo){ META.gh.error='No pude determinar el repositorio de GitHub: completá "repo" en config.js.'; return; }
+  let list=null;
+  try{ setL('Consultando los archivos en GitHub…'); list=await ghList(repo,GH_DIR,0,[]); try{ localStorage.setItem('gh_list',JSON.stringify({t:Date.now(),list})); }catch(e){} }
+  catch(e){ try{ const c=JSON.parse(localStorage.getItem('gh_list')||'null'); if(c&&c.list) list=c.list; }catch(_){}
+    if(!list){ setL(''); META.gh.error='No se pudo consultar GitHub: '+(e.message||e); return; }
+    META.gh.warn='No se pudo consultar GitHub ('+(e.message||e)+'): se usan los últimos archivos conocidos de este navegador.'; }
+  const digs=[], errs=[]; let n=0;
+  for(const f of list){ n++; let d=null;
+    try{ d=await kvGet(DG_V+f.sha); }catch(e){}
+    if(!d){ try{ setL('Procesando '+n+' de '+list.length+': '+f.name+'…'); await tick(); const r=await fetch(f.url+'?v='+f.sha); if(!r.ok) throw new Error('no se pudo descargar ('+r.status+')'); d=await ghDigest(f.name,await r.arrayBuffer()); try{ await kvSet(DG_V+f.sha,d); }catch(e){} }
+      catch(e){ errs.push(f.name+': '+(e.message||e)); continue; } }
+    digs.push({f,d}); }
+  setL('');
+  try{ const keep=list.map(f=>DG_V+f.sha); const idx=(await kvGet(DG_V+'idx'))||[]; for(const k of idx) if(!keep.includes(k)) await kvDel(k); await kvSet(DG_V+'idx',keep); }catch(e){}   // limpia la caché de archivos que ya no están
+  ghFold(digs,errs,list); }
 
-
+async function kvGet(k){ const db=await idb(); return new Promise((res,rej)=>{ const r=db.transaction('kv').objectStore('kv').get(k); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function kvSet(k,v){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
+async function kvDel(k){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction('kv','readwrite'); t.objectStore('kv').delete(k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
 async function persist(){ try{ await kvSet('registry',REG); await kvSet('snaps',SNAPS); await kvSet('snapsP',SNAPP); await kvSet('libm',LIBM); await kvSet('umv',UMV); return true; }catch(e){ return false; } }
 
 // ---------- Excel parsing ----------
@@ -757,13 +839,14 @@ function parseTenencia(wb,fname){
     const hi=a.findIndex((row,i)=>i<15&&row&&row.some(c=>norm(c).toUpperCase()==='UNIDAD')&&row.some(c=>norm(c).toUpperCase().replace('.','')==='VTO')); if(hi<0) continue;
     const H=a[hi].map(c=>norm(c).toUpperCase().replace('.','')); const ix={vto:H.indexOf('VTO'),u:H.indexOf('UNIDAD'),lib:H.indexOf('LIBRADOR'),m:H.indexOf('TOTAL')};
     if(ix.m<0) throw new Error('falta la columna Total en el export de tenencia');
-    const items=[]; const map={}; const kc={}; let n=0, nz=0, kind=null;
+    const items=[]; const live=[]; const map={}; const kc={}; let n=0, nz=0, kind=null;
     for(let i=hi+1;i<a.length;i++){ const r=a[i]; if(!r) continue; const u=norm(r[ix.u]); const mm=u.match(/\[([^\]]+)\]/)||u.match(/([#*][A-Za-z]+\d+)/); const v=toDay(r[ix.vto]); const m=Math.abs(+r[ix.m]);
       if(!mm||v==null||isNaN(m)) continue; n++; const id=mm[1]; kc[id[0]]=(kc[id[0]]||0)+1; const ln=nrmName(r[ix.lib]); if(ln) map[id]=ln; if(m>0) nz++;
+      if(m>0) live.push([id,v,Math.round(m*100)/100,norm(r[ix.lib])]);
       if(v<todayD&&m>0) items.push([id,v,Math.round(m*100)/100,'IMPAGO (INV. PROPIO)',norm(r[ix.lib])]); }
     kind=(kc['#']||0)>(kc['*']||0)?'#':(kc['*']||0)>0?'*':null;
     if(!kind){ kind=/echeq/i.test(fname)?'*':/pagar/i.test(fname)?'#':'?'; }
-    return {kind,items,n,nz,map,libOnly:(n>0&&nz===0)}; }
+    return {kind,items,live,n,nz,map,libOnly:(n>0&&nz===0)}; }
   return null; }
 function parseReporteUMV(wb){
   const nm=wb.SheetNames.find(n=>/reporte de cheques/i.test(n.trim())); if(!nm) return null; const a=sheetRows(wb,nm);
@@ -788,7 +871,7 @@ function parseGestion(wb,fname,fx){
 const tick=()=>new Promise(r=>setTimeout(r,20));
 function setMsg(t,c){ const m=$('msg'); m.textContent=t; m.className='msg '+(c||''); }
 async function handleFiles(files){
-  if(!IS_ADMIN) return; files=[...files]; if(!files.length) return; $('dataBody').style.display='block'; $('dataCard').scrollIntoView({behavior:'smooth',block:'nearest'});
+  return; /* la carga se hace subiendo los Excel a GitHub */ files=[...files]; if(!files.length) return; $('dataBody').style.display='block'; $('dataCard').scrollIntoView({behavior:'smooth',block:'nearest'});
   const ok=[], err=[]; setMsg('Procesando…','');
   for(const f of files){ try{
       await tick(); const buf=await f.arrayBuffer();
@@ -809,9 +892,10 @@ async function handleFiles(files){
         REG=buildRegistry(rows); ok.push('Registro: '+nf0.format(rows.length)+' operaciones'); }
     }catch(e){ err.push(f.name+': '+(e.message||e)); } }
   if(ok.length){ const saved=await persist(); setData(REG,SNAPS,SNAPP); update(); refreshStatus();
-    setMsg('✔ '+ok.join(' · ')+(saved?'':'  — (no se pudo guardar en Supabase: revisá la conexión y que tu usuario sea administrador)')+(err.length?'  ✖ '+err.join(' | '):''), err.length?'warn':'ok'); }
+    setMsg('✔ '+ok.join(' · ')+(saved?'':'  — (no se pudo guardar en este navegador: los datos valen hasta cerrar la pestaña)')+(err.length?'  ✖ '+err.join(' | '):''), err.length?'warn':'ok'); }
   else setMsg('✖ '+err.join(' | '),'err');
 }
+$('btnReload').onclick=async()=>{ try{ await loadFromGitHub(); }catch(e){ META.gh={error:String(e.message||e)}; } setData(REG,SNAPS,SNAPP); update(); refreshStatus(); };
 function refreshStatus(){
   let lastC=0; R.forEach(r=>{ if(r.c>lastC) lastC=r.c; });
   const lastS=SNDATES.length?SNDATES[SNDATES.length-1]:null; const nOpen=MO.filter(moraOpen).length;
@@ -821,8 +905,13 @@ function refreshStatus(){
   if(META.relib) h+='<span>Librador tomado por código (detalle FCI / GESTION / inv. propios) en <b>'+nf0.format(META.relib)+'</b> operaciones · detalle FCI: <b>'+nf0.format(Object.keys(LIBM).length)+'</b> códigos (el resto, del registro)</span>';
   if(META.umv&&(META.umv.rep||META.umv.fb)) h+='<span>Pagarés USD (UMV): <b>'+META.umv.rep+'</b> con valor pesificado de GESTION · <b>'+META.umv.fb+'</b> sin valor en GESTION, convertidos al TC de referencia <b>$'+nf0.format(META.umv.fx||0)+'</b></span>';
   if(META.lgroup&&META.lgroup.from>META.lgroup.to) h+='<span>Libradores agrupados por razón social similar: <b>'+nf0.format(META.lgroup.from)+'</b> nombres → <b>'+nf0.format(META.lgroup.to)+'</b></span>';
+  if(META.cgroup&&META.cgroup.from>META.cgroup.to) h+='<span>Comitentes agrupados por razón social similar: <b>'+nf0.format(META.cgroup.from)+'</b> nombres → <b>'+nf0.format(META.cgroup.to)+'</b></span>';
+  if(META.gh){ const g=META.gh; if(g.archivos!=null) h+='<span>Archivos leídos de GitHub (<b>'+esc(GH_DIR)+'/</b>): <b>'+g.archivos+'</b>'+(g.registro?' · registro: <b>'+esc(g.registro)+'</b>':'')+'</span>';
+    if(g.sinFecha&&g.sinFecha.length) h+='<span class="bad">Sin fecha en el nombre: '+esc(g.sinFecha.join(', '))+' (se asumió la fecha más reciente de los datos)</span>';
+    if(g.warn) h+='<span class="bad">'+esc(g.warn)+'</span>'; if(g.error) h+='<span class="bad">'+esc(g.error)+'</span>';
+    if(g.errores&&g.errores.length) h+='<span class="bad">No se pudieron leer: '+esc(g.errores.join(' | '))+'</span>'; }
   if(META.unmatched) h+='<span class="bad">'+META.unmatched+' cheque(s) en mora no figuran en el registro</span>';
-  if(lastS!=null&&todayD-lastS>3) h+='<span class="bad">El último GESTION tiene '+(todayD-lastS)+' días: cargá el de hoy</span>';
+  if(lastS!=null&&todayD-lastS>3) h+='<span class="bad">El último GESTION tiene '+(todayD-lastS)+' días: subí el de hoy a GitHub</span>';
   if(todayD-lastC>3) h+='<span class="bad">El registro no tiene concertaciones desde hace '+(todayD-lastC)+' días</span>';
   $('status').innerHTML=h;
   const sn=$('snaps'); sn.innerHTML=SNDATES.length?'<span>Informes GESTION cargados:</span>'+SNDATES.map(d=>'<span class="chip"><b>'+fmtDate(d)+'</b> · '+SN[d].length+'<span class="del" data-d="'+d+'" title="Quitar este informe">×</span></span>').join(''):'<span>Todavía no hay informes GESTION cargados.</span>';
@@ -840,11 +929,11 @@ $('btnReset').onclick=async()=>{ if(!confirm('¿Descartar lo que cargaste y volv
 (async()=>{
   let ok=false; try{ ok=await authInit(); }catch(e){ $('authMsg').textContent='Error de conexión: '+(e.message||e); $('auth').style.display='flex'; }
   if(!ok) return;
-  try{ await loadShared(); }catch(e){ alert('No se pudieron leer los datos: '+(e.message||e)); }
+  try{ await loadFromGitHub(); }catch(e){ META.gh={error:'Error al leer los datos: '+(e.message||e)}; $('ghBanner').style.display='none'; }
   try{ await loadHitos(); }catch(e){ alert('No se pudieron leer los hitos: '+(e.message||e)); }
   setData(REG,SNAPS,SNAPP);
   makeCombo($('cCom'),'com','comitentes'); makeCombo($('cLib'),'lib','libradores');
-  update(); refreshStatus();
+  update(); refreshStatus(); window.__listo=true;
   try{ sb.channel('hitos-cambios').on('postgres_changes',{event:'*',schema:'public',table:'hitos'},async()=>{ try{ await loadHitos(); update(); }catch(e){} }).subscribe(); }catch(e){}
 })();
 window.addEventListener('resize',()=>{ if(window._C){ drawMain(window._C); drawFlows(window._C);} });
