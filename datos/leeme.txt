@@ -1,0 +1,14 @@
+Subí acá los Excel del tablero (Add file -> Upload files).
+El tablero los lee solo, al abrir o recargar la página. Reconoce cada archivo por su contenido, no por el nombre:
+ 
+  - Registro de cheques y pagarés (pestaña "ECHEQ-PAGARE C-RIESGO")
+        Si subís uno nuevo, se usa el que tenga la concertación más reciente.
+  - GESTION MOMENTUM
+        Guardá uno por día (no pises el anterior): el tablero compara un día con otro para saber cuándo se cobró un cheque en mora.
+  - Pagaré export y Echeq export (inversores propios)
+        Ponele la fecha al nombre, por ejemplo:  echeq_export_21_10_2026.xlsx  /  pagare_export_21_10_2026.xlsx
+  - Export FCI de pagarés y de cheques (detalle de libradores)
+        Solo hace falta volver a subirlos cuando haya operaciones nuevas del FCI.
+ 
+Si querés ordenar, podés usar subcarpetas dentro de datos/ (hasta 2 niveles).
+Cuidado: lo que subas a este repositorio es público.
