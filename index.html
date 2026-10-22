@@ -717,8 +717,8 @@ function renderChips(){ const el=$('rieChips'); el.innerHTML='';
 // IndexedDB (persistencia en el navegador)
 function idb(){ return new Promise((res,rej)=>{ const q=indexedDB.open('deuda_librador',1); q.onupgradeneeded=()=>q.result.createObjectStore('kv'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
 // ====== CONFIGURACIÓN DE SUPABASE (completar con los datos de tu proyecto: Project Settings → API) ======
-const SUPABASE_URL = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || 'https://TU-PROYECTO.supabase.co';  // se lee de config.js (o se puede escribir acá)
-const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'TU_CLAVE_PUBLICABLE';  // la "Publishable key" (sb_publishable_...) o, en proyectos viejos, la "anon public key"
+const SUPABASE_URL = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || 'https://mixcjfgrtfviecjkeylf.supabase.co';  // se lee de config.js (o se puede escribir acá)
+const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'sb_publishable_IZfog7d0gDB2HWTQ_1AUCw_Ek5KMWtw';  // la "Publishable key" (sb_publishable_...) o, en proyectos viejos, la "anon public key"
 // ========================================================================================================
 const INIT_HASH = location.hash || ''; /* se captura antes de que supabase-js lo limpie */
 const sb = (typeof supabase!=='undefined' && !/TU-PROYECTO/.test(SUPABASE_URL)) ? supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY) : null;
