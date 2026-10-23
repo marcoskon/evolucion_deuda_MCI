@@ -29,6 +29,10 @@ label.l{display:block;font-size:11px;letter-spacing:.04em;text-transform:upperca
 .combo input:focus{outline:2px solid var(--accent);outline-offset:-1px}
 .combo .x{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--mute);font-size:18px;cursor:pointer;padding:2px 7px;display:none}
 .combo.has .x{display:block}
+tr.selrow td{background:var(--accent-soft)}
+.combo .sel{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.combo .sel span{display:inline-flex;align-items:center;gap:2px;background:var(--accent-soft);color:var(--ink);border-radius:999px;padding:2px 4px 2px 10px;font-size:12px;max-width:100%}
+.combo .sel button{border:0;background:none;cursor:pointer;color:var(--mute);font-size:15px;line-height:1;padding:0 5px}
 .list{position:absolute;z-index:20;left:0;right:0;top:100%;margin-top:4px;max-height:320px;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.16);display:none}
 .list.open{display:block}
 .list div{padding:7px 11px;cursor:pointer;display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--grid)}
@@ -241,7 +245,7 @@ body.viewer #dataBody,body.viewer #btnData{display:none !important}
     <div class="chead"><h2 id="tTitle">Detalle</h2>
       <div class="seg" id="segTbl"><button data-v="lib" class="on">por librador</button><button data-v="com">por comitente</button><button data-v="rie">por riesgo</button><button data-v="ops">operaciones</button><button data-v="mora">cheques en mora</button></div></div>
     <div class="tscroll"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
-    <div class="note">Hacé clic en una fila para filtrar por ese librador / comitente. Montos en pesos nominales, tal cual figuran en el registro.</div>
+    <div class="note">Hacé clic en una fila para filtrar por ese librador / comitente (con Ctrl+clic sumás varios comitentes). Montos en pesos nominales, tal cual figuran en el registro.</div>
   </div>
 
   <div class="card" style="margin-top:12px" id="dataCard">
@@ -305,12 +309,42 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 let G1=null, G2=null;
-const S = {com:null, lib:null, rie:new Set(), mode:'total', by:'lib', fut:180, r0:null, r1:null, osort:{k:'m',d:-1}, olim:500, gran:'m', tbl:'lib', sort:{k:'saldo',d:-1}};
+const S = {com:new Set(), lib:null, rie:new Set(), mode:'total', by:'lib', fut:180, r0:null, r1:null, osort:{k:'m',d:-1}, olim:500, gran:'m', tbl:'lib', sort:{k:'saldo',d:-1}};
 
 // ---------- filtering ----------
-function rowsFor(ignore){ return R.filter(r=>(ignore==='com'||S.com==null||r.com===S.com)&&(ignore==='lib'||S.lib==null||r.lib===S.lib)&&S.rie.has(r.rie)); }
+function rowsFor(ignore){ return R.filter(r=>(ignore==='com'||S.com.size===0||S.com.has(r.com))&&(ignore==='lib'||S.lib==null||r.lib===S.lib)&&S.rie.has(r.rie)); }
 
 // ---------- combo ----------
+function makeMulti(el, key, label){   /* selector con varias opciones (comitentes) */
+  const nmv=()=>D[key];
+  el.innerHTML='<input type="text" autocomplete="off"><button class="x" title="Quitar todos los filtros">×</button><div class="sel"></div><div class="list"></div>';
+  const inp=el.querySelector('input'), list=el.querySelector('.list'), x=el.querySelector('.x'), sel=el.querySelector('.sel');
+  let items=[], opened=false;
+  function build(q){
+    const tot=new Map(); for(const r of rowsFor(key)) tot.set(r[key],(tot.get(r[key])||0)+r.m);
+    S[key].forEach(i=>{ if(!tot.has(i)) tot.set(i,0); });
+    q=(q||'').toLowerCase(); const names=nmv();
+    items=[...tot.entries()].filter(([i])=>!q||names[i].toLowerCase().includes(q)).sort((a,b)=>(S[key].has(b[0])-S[key].has(a[0]))||(b[1]-a[1])).slice(0,300);
+    list.innerHTML='<div data-i="" class="'+(S[key].size===0?'act':'')+'"><span>Todos</span><span></span></div>'+
+      (items.length?items.map(([i,v])=>'<div data-i="'+i+'" class="'+(S[key].has(i)?'act':'')+'"><span>'+(S[key].has(i)?'✓ ':'')+esc(names[i])+'</span><span>'+short(v)+'</span></div>').join(''):'<div class="empty">Sin resultados</div>');
+  }
+  function open(){ opened=true; build(inp.value); list.classList.add('open'); }
+  function toggle(i){ if(i===''){ S[key]=new Set(); } else { i=+i; if(S[key].has(i)) S[key].delete(i); else S[key].add(i); } update(); }
+  inp.addEventListener('focus',()=>{ inp.select(); open(); });
+  inp.addEventListener('input',()=>{ open(); });
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const f=items[0]; if(f&&inp.value){ toggle(f[0]); inp.value=''; build(''); } e.preventDefault(); }
+    if(e.key==='Escape'){ list.classList.remove('open'); opened=false; inp.blur(); }
+    if(e.key==='Backspace'&&!inp.value&&S[key].size){ const last=[...S[key]].pop(); S[key].delete(last); update(); } });
+  list.addEventListener('mousedown',e=>{ const d=e.target.closest('div[data-i]'); if(d){ e.preventDefault(); toggle(d.dataset.i); } });
+  x.addEventListener('mousedown',e=>{ e.preventDefault(); toggle(''); });
+  sel.addEventListener('mousedown',e=>{ const b=e.target.closest('button[data-i]'); if(b){ e.preventDefault(); toggle(b.dataset.i); } });
+  inp.addEventListener('blur',()=>{ opened=false; list.classList.remove('open'); inp.value=''; });
+  function sync(){
+    inp.placeholder=S[key].size?'Agregar otro '+label.replace(/s$/,'')+'…':'Todos los '+label+' — escribí para buscar';
+    sel.innerHTML=[...S[key]].map(i=>'<span>'+esc(nmv()[i])+'<button data-i="'+i+'" title="Quitar">×</button></span>').join('');
+    el.classList.toggle('has',S[key].size>0); if(opened) build(inp.value); }
+  el.sync=sync; sync();
+}
 function makeCombo(el, key, label){
   const nmv=()=>D[key];
   el.innerHTML = '<input type="text" autocomplete="off" placeholder="Todos los '+label+' — escribí para buscar"><button class="x" title="Quitar filtro">×</button><div class="list"></div>';
@@ -337,7 +371,7 @@ function makeCombo(el, key, label){
 }
 
 // ---------- computation ----------
-function moraFor(){ return MO.filter(r=>(S.com==null||r.com===S.com)&&(S.lib==null||r.lib===S.lib)&&S.rie.has(r.rie)); }
+function moraFor(ignore){ return MO.filter(r=>(ignore==='com'||S.com.size===0||S.com.has(r.com))&&(S.lib==null||r.lib===S.lib)&&S.rie.has(r.rie)); }
 function compute(){
   const rows=rowsFor(), mo=moraFor();
   let maxD=-1e9, minD=1e9;
@@ -484,8 +518,8 @@ bindTip('c2','tip2',x=>{ const g=G2; if(!g) return null; const d=g.d0+(x-M.l)/(g
 let HITOS=[]; let editing=null;
 const isoDay=d=>new Date(d*DAY).toISOString().slice(0,10);
 const dayIso=s=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m?Date.UTC(+m[1],+m[2]-1,+m[3])/DAY:null; };
-function curScope(){ return {com:S.com!=null?D.com[S.com]:null, lib:S.lib!=null?D.lib[S.lib]:null}; }
-function hitosVisible(){ const sc=curScope(); return HITOS.filter(h=>(h.com==null||lkey(h.com)===lkey(sc.com))&&(h.lib==null||lkey(h.lib)===lkey(sc.lib))).sort((a,b)=>a.d-b.d); }
+function curScope(){ return {com:S.com.size===1?D.com[[...S.com][0]]:null, lib:S.lib!=null?D.lib[S.lib]:null}; }
+function hitosVisible(){ const sc=curScope(); const ck=new Set([...S.com].map(i=>lkey(D.com[i]))); return HITOS.filter(h=>(h.com==null||ck.has(lkey(h.com)))&&(h.lib==null||lkey(h.lib)===lkey(sc.lib))).sort((a,b)=>a.d-b.d); }
 async function saveHitos(){}
 function renderHitos(){
   const el=$('hlist'); const HV=hitosVisible();
@@ -583,17 +617,19 @@ function table(C,vivoTot){
   }
   const names=t==='lib'?D.lib:t==='com'?D.com:D.rie; $('tTitle').textContent='Detalle '+(t==='lib'?'por librador':t==='com'?'por comitente':'por tipo de riesgo');
   const g=new Map(); const ga=k=>{ let a=g.get(k); if(!a) g.set(k,a={g:k,tomado:0,saldo:0,ops:0,vivas:0,prox:0,mora:0,rs:[]}); return a; };
-  C.mo.forEach(r=>{ const a=ga(r[t]); if(moraOpen(r)) a.mora+=r.m; });
-  C.rows.forEach(r=>{ const a=ga(r[t]); a.tomado+=r.m; a.ops++; a.rs.push(r); if(r.k>todayD&&r.c<=todayD){a.saldo+=r.m;a.vivas++; if(r.k<=todayD+30)a.prox+=r.m;} });
+  /* por comitente se listan todos (aunque haya selección) para poder sumar más con Ctrl+clic; los elegidos quedan resaltados */
+  const srcMo=t==='com'?moraFor('com'):C.mo, srcRows=t==='com'?rowsFor('com'):C.rows;
+  srcMo.forEach(r=>{ const a=ga(r[t]); if(moraOpen(r)) a.mora+=r.m; });
+  srcRows.forEach(r=>{ const a=ga(r[t]); a.tomado+=r.m; a.ops++; a.rs.push(r); if(r.k>todayD&&r.c<=todayD){a.saldo+=r.m;a.vivas++; if(r.k<=todayD+30)a.prox+=r.m;} });
   const arr=[...g.values()]; arr.forEach(a=>{ const ev=[]; a.rs.forEach(r=>{ev.push([r.c,r.m]);ev.push([r.k,-r.m]);}); ev.sort((x,y)=>x[0]-y[0]||x[1]-y[1]); let s=0,p=0; ev.forEach(e=>{s+=e[1]; if(s>p)p=s;}); a.pico=p; });
   const cols=[['name','Nombre'],['saldo','Deuda hoy'],['mora','En mora hoy'],['pct','% saldo'],['pico','Pico'],['tomado','Total tomado'],['vivas','Ops vivas'],['prox','Vence 30d']];
   th.innerHTML='<tr>'+cols.map(c=>'<th data-k="'+c[0]+'">'+c[1]+(S.sort.k===c[0]?(S.sort.d<0?' ▾':' ▴'):'')+'</th>').join('')+'</tr>';
   th.querySelectorAll('th').forEach(x=>x.onclick=()=>{ const k=x.dataset.k; S.sort=S.sort.k===k?{k,d:-S.sort.d}:{k,d:k==='name'?1:-1}; table(C,vivoTot); });
-  arr.forEach(a=>{a.name=names[a.g]; a.pct=vivoTot?a.saldo/vivoTot:0;});
+  const denom=t==='com'?arr.reduce((q,a)=>q+a.saldo,0):vivoTot; arr.forEach(a=>{a.name=names[a.g]; a.pct=denom?a.saldo/denom:0;});
   const k=S.sort.k, d=S.sort.d; arr.sort((a,b)=>k==='name'?d*a.name.localeCompare(b.name):d*(a[k]-b[k]));
   const mxs=Math.max(1,...arr.map(a=>a.saldo));
-  tb.innerHTML=arr.slice(0,400).map(a=>'<tr class="'+(t==='rie'?'':'click')+'" data-g="'+a.g+'"><td>'+esc(a.name)+'</td><td>'+money(a.saldo)+'<span class="bar" style="width:'+Math.round(a.saldo/mxs*60)+'px"></span></td><td class="'+(a.mora?'bad':'')+'">'+(a.mora?money(a.mora):'—')+'</td><td>'+nf1.format(a.pct*100)+'%</td><td>'+money(a.pico)+'</td><td>'+money(a.tomado)+'</td><td>'+a.vivas+'</td><td>'+money(a.prox)+'</td></tr>').join('');
-  tb.querySelectorAll('tr.click').forEach(tr=>tr.onclick=()=>{ S[t]=+tr.dataset.g; update(); window.scrollTo({top:0,behavior:'smooth'}); });
+  tb.innerHTML=arr.slice(0,400).map(a=>'<tr class="'+(t==='rie'?'':'click')+(t==='com'&&S.com.has(a.g)?' selrow':'')+'" data-g="'+a.g+'"><td>'+esc(a.name)+'</td><td>'+money(a.saldo)+'<span class="bar" style="width:'+Math.round(a.saldo/mxs*60)+'px"></span></td><td class="'+(a.mora?'bad':'')+'">'+(a.mora?money(a.mora):'—')+'</td><td>'+nf1.format(a.pct*100)+'%</td><td>'+money(a.pico)+'</td><td>'+money(a.tomado)+'</td><td>'+a.vivas+'</td><td>'+money(a.prox)+'</td></tr>').join('');
+  tb.querySelectorAll('tr.click').forEach(tr=>tr.onclick=ev=>{ const g=+tr.dataset.g; if(t==='com'){ if(ev.ctrlKey||ev.metaKey){ if(S.com.has(g)) S.com.delete(g); else S.com.add(g); update(); return; } S.com=new Set([g]); } else S[t]=g; update(); window.scrollTo({top:0,behavior:'smooth'}); });
 }
 
 // ---------- update ----------
@@ -602,7 +638,7 @@ function update(){
   const C=compute();
   const k=kpis(C);
   drawMain(C); drawFlows(C); table(C,k.vivo);
-  const parts=[]; if(S.com!=null)parts.push('Comitente: '+D.com[S.com]); if(S.lib!=null)parts.push('Librador: '+D.lib[S.lib]);
+  const parts=[]; if(S.com.size===1)parts.push('Comitente: '+D.com[[...S.com][0]]); else if(S.com.size>1){ const nm=[...S.com].map(i=>D.com[i]); parts.push(S.com.size+' comitentes: '+nm.slice(0,3).join(', ')+(nm.length>3?'…':'')); } if(S.lib!=null)parts.push('Librador: '+D.lib[S.lib]);
   $('sub').textContent=(parts.length?parts.join('  ·  '):'Todos los comitentes y libradores')+'  —  saldo vigente = monto desde la concertación hasta la fecha de cobro  ·  M = millones, MM = miles de millones';
   $('note1').textContent = S.mode==='stack'?'Apilado: los 6 mayores '+(S.by==='lib'?'libradores':S.by==='com'?'comitentes':'tipos de riesgo')+' según su pico; el resto se agrupa en "Otros".':'';
   $('segBy').style.display=S.mode==='stack'?'':'none';
@@ -667,7 +703,7 @@ function setData(reg,snaps,snapp){
     R.forEach(r=>{ const n=canon.get(lkey(D.com[r.com])); if(n&&D.com[r.com]!==n) r.com=idxOf(D.com,n); });
     META.cgroup={from,to}; }
   buildMora();
-  S.com=null; S.lib=null; S.rie=new Set(D.rie.map((_,i)=>i)); renderChips();
+  S.com=new Set(); S.lib=null; S.rie=new Set(D.rie.map((_,i)=>i)); renderChips();
 }
 function renderChips(){ const el=$('rieChips'); el.innerHTML='';
   D.rie.forEach((n,i)=>{ const b=document.createElement('button'); b.className='chip on'; b.textContent=n; b.onclick=()=>{ if(S.rie.has(i)) S.rie.delete(i); else S.rie.add(i); b.classList.toggle('on',S.rie.has(i)); update(); }; el.appendChild(b); });
@@ -676,8 +712,8 @@ function renderChips(){ const el=$('rieChips'); el.innerHTML='';
 // IndexedDB (persistencia en el navegador)
 function idb(){ return new Promise((res,rej)=>{ const q=indexedDB.open('deuda_librador',1); q.onupgradeneeded=()=>q.result.createObjectStore('kv'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
 // ====== CONFIGURACIÓN DE SUPABASE (completar con los datos de tu proyecto: Project Settings → API) ======
-const SUPABASE_URL = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || 'https://mixcjfgrtfviecjkeylf.supabase.co';  // se lee de config.js (o se puede escribir acá)
-const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'sb_publishable_IZfog7d0gDB2HWTQ_1AUCw_Ek5KMWtw';  // la "Publishable key" (sb_publishable_...) o, en proyectos viejos, la "anon public key"
+const SUPABASE_URL = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || 'https://TU-PROYECTO.supabase.co';  // se lee de config.js (o se puede escribir acá)
+const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'TU_CLAVE_PUBLICABLE';  // la "Publishable key" (sb_publishable_...) o, en proyectos viejos, la "anon public key"
 // ========================================================================================================
 const INIT_HASH = location.hash || ''; /* se captura antes de que supabase-js lo limpie */
 const sb = (typeof supabase!=='undefined' && !/TU-PROYECTO/.test(SUPABASE_URL)) ? supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY) : null;
@@ -891,7 +927,7 @@ $('btnReset').onclick=async()=>{ if(!confirm('¿Descartar lo que cargaste y volv
   try{ await loadFromGitHub(); }catch(e){ META.gh={error:'Error al leer los datos: '+(e.message||e)}; $('ghBanner').style.display='none'; }
   try{ await loadHitos(); }catch(e){ alert('No se pudieron leer los hitos: '+(e.message||e)); }
   setData(REG,SNAPS,SNAPP);
-  makeCombo($('cCom'),'com','comitentes'); makeCombo($('cLib'),'lib','libradores');
+  makeMulti($('cCom'),'com','comitentes'); makeCombo($('cLib'),'lib','libradores');
   update(); refreshStatus(); window.__listo=true;
   try{ sb.channel('hitos-cambios').on('postgres_changes',{event:'*',schema:'public',table:'hitos'},async()=>{ try{ await loadHitos(); update(); }catch(e){} }).subscribe(); }catch(e){}
 })();
