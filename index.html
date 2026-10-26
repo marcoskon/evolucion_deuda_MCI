@@ -30,6 +30,8 @@ label.l{display:block;font-size:11px;letter-spacing:.04em;text-transform:upperca
 .combo .x{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--mute);font-size:18px;cursor:pointer;padding:2px 7px;display:none}
 .combo.has .x{display:block}
 tr.selrow td{background:var(--accent-soft)}
+thead tr.subrow td{position:sticky;top:var(--hh,32px);background:var(--card);font-weight:700;border-bottom:2px solid var(--line);z-index:1}
+thead tr.subrow td:first-child{text-align:left}
 .combo .sel{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .combo .sel span{display:inline-flex;align-items:center;gap:2px;background:var(--accent-soft);color:var(--ink);border-radius:999px;padding:2px 4px 2px 10px;font-size:12px;max-width:100%}
 .combo .sel button{border:0;background:none;cursor:pointer;color:var(--mute);font-size:15px;line-height:1;padding:0 5px}
@@ -286,12 +288,13 @@ const D0 = {"com":[],"lib":[],"rie":[],"rows":[]};
 const SN0 = {};
 const SNP0 = {};
 const UMV0 = {"day":0,"fx":null,"m":{}};
+const PREV0 = {};
 const LIB0 = {"n":[],"m":{}};
 const expandLib=L=>{ const o={}; for(const k in L.m) o[k]=L.n[L.m[k]]; return o; };
 const lkey=n=>String(n||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 let CANON=new Map(); const canonName=n=>CANON.get(lkey(n))||n;
 const nrmName=n=>String(n||'').replace(/\s+/g,' ').replace(/[\s.\-]+$/,'').trim();
-let D, R, SN, MO, SNDATES=[], META={}, SNP={}, SPDATES=[], SNAPP={}, LIBM=expandLib(LIB0), UMV=JSON.parse(JSON.stringify(UMV0));
+let D, R, SN, MO, SNDATES=[], META={}, SNP={}, SPDATES=[], SNAPP={}, LIBM=expandLib(LIB0), UMV=JSON.parse(JSON.stringify(UMV0)), PREV=JSON.parse(JSON.stringify(PREV0));
 const DAY = 86400000;
 const todayD = Math.floor((Date.now() - new Date().getTimezoneOffset()*60000)/DAY);
 const fmtDate = d => { const t=new Date(d*DAY); return String(t.getUTCDate()).padStart(2,'0')+'/'+String(t.getUTCMonth()+1).padStart(2,'0')+'/'+t.getUTCFullYear(); };
@@ -574,6 +577,13 @@ $('rReset').onclick=()=>{ S.r0=S.r1=null; update(); };
 
 // ---------- KPIs ----------
 function moraOpen(r){ return r.s<=todayD&&todayD<r.e; }
+function prevision(){ const ds=Object.keys(PREV).map(Number).sort((a,b)=>b-a); return ds.length?{d:ds[0],m:PREV[ds[0]]}:null; }
+function moraKpi(mora,nmora,vivo){
+  const pv=prevision(), aplica=pv&&S.com.size===0&&S.lib==null;
+  if(!pv) return ['MORA',short(mora),nmora+' cheques'+(vivo+mora?' · '+nf1.format(mora/(vivo+mora)*100)+'% de vigente + mora':''),'mora'];
+  if(!aplica) return ['MORA',short(mora),nmora+' cheques'+(vivo+mora?' · '+nf1.format(mora/(vivo+mora)*100)+'% de vigente + mora':'')+'<br><small style="color:var(--mute)">Sin neteo: hay filtro de comitente / librador. Previsión del fondo: '+short(pv.m)+'</small>','mora'];
+  const neta=Math.max(0,mora-pv.m), exc=pv.m>mora?pv.m-mora:0, den=vivo+neta;
+  return ['Mora neta',short(neta),nmora+' cheques'+(den?' · '+nf1.format(neta/den*100)+'% de vigente + mora neta':'')+'<br><small style="color:var(--mute)" title="Previsión incobrables según GESTION al '+fmtDate(pv.d)+'">Mora bruta '+short(mora)+' − previsión '+short(pv.m)+(exc?' (la previsión supera la mora en '+short(exc)+')':'')+'</small>','mora']; }
 function kpis(C){
   const rows=C.rows; let mora=0, nmora=0; C.mo.forEach(r=>{ if(moraOpen(r)){mora+=r.m;nmora++;} });
   let tomado=0, canc=0, vivo=0, v30=0, wsum=0, nvivas=0, plazo=0;
@@ -583,7 +593,7 @@ function kpis(C){
     ['Deuda vigente hoy',short(vivo),nvivas+' operaciones vivas'],
     ['Pico de deuda',rows.length?short(pv):'—',rows.length?fmtDate(C.days[pi]):''],
     ['Total tomado',short(tomado),nf0.format(rows.length)+' operaciones'],
-    ['MORA',short(mora),nmora+' cheques'+(vivo+mora?' · '+nf1.format(mora/(vivo+mora)*100)+'% de vigente + mora':''),'mora'],
+    moraKpi(mora,nmora,vivo),
     ['Vence en 30 días',short(v30),vivo?nf1.format(v30/vivo*100)+'% del saldo vivo':''],
     ['Plazo medio pond.',tomado?nf0.format(plazo/tomado)+' días':'—','concertación → cobro'] ];
   $('kpis').innerHTML=items.map(i=>'<div class="card kpi '+(i[3]||'')+'"><div class="k">'+i[0]+'</div><div class="v">'+i[1]+'</div><div class="s">'+i[2]+'</div></div>').join('');
@@ -629,6 +639,9 @@ function table(C,vivoTot){
   const k=S.sort.k, d=S.sort.d; arr.sort((a,b)=>k==='name'?d*a.name.localeCompare(b.name):d*(a[k]-b[k]));
   const mxs=Math.max(1,...arr.map(a=>a.saldo));
   tb.innerHTML=arr.slice(0,400).map(a=>'<tr class="'+(t==='rie'?'':'click')+(t==='com'&&S.com.has(a.g)?' selrow':'')+'" data-g="'+a.g+'"><td>'+esc(a.name)+'</td><td>'+money(a.saldo)+'<span class="bar" style="width:'+Math.round(a.saldo/mxs*60)+'px"></span></td><td class="'+(a.mora?'bad':'')+'">'+(a.mora?money(a.mora):'—')+'</td><td>'+nf1.format(a.pct*100)+'%</td><td>'+money(a.pico)+'</td><td>'+money(a.tomado)+'</td><td>'+a.vivas+'</td><td>'+money(a.prox)+'</td></tr>').join('');
+  { const sub=(t==='com'&&S.com.size>0)?arr.filter(a=>S.com.has(a.g)):arr; const T={saldo:0,mora:0,tomado:0,vivas:0,prox:0,pct:0}; sub.forEach(a=>{ T.saldo+=a.saldo; T.mora+=a.mora; T.tomado+=a.tomado; T.vivas+=a.vivas; T.prox+=a.prox; T.pct+=a.pct; });
+    const lbl=(t==='com'&&S.com.size>0)?'Subtotal de los seleccionados':'Subtotal'; th.insertAdjacentHTML('beforeend','<tr class="subrow"><td>'+lbl+' ('+nf0.format(sub.length)+')</td><td>'+money(T.saldo)+'</td><td class="'+(T.mora?'bad':'')+'">'+(T.mora?money(T.mora):'—')+'</td><td>'+nf1.format(T.pct*100)+'%</td><td>—</td><td>'+money(T.tomado)+'</td><td>'+nf0.format(T.vivas)+'</td><td>'+money(T.prox)+'</td></tr>');
+    th.closest('table').style.setProperty('--hh',(th.rows[0]?th.rows[0].offsetHeight:0||32)+'px'); }
   tb.querySelectorAll('tr.click').forEach(tr=>tr.onclick=ev=>{ const g=+tr.dataset.g; if(t==='com'){ if(ev.ctrlKey||ev.metaKey){ if(S.com.has(g)) S.com.delete(g); else S.com.add(g); update(); return; } S.com=new Set([g]); } else S[t]=g; update(); window.scrollTo({top:0,behavior:'smooth'}); });
 }
 
@@ -748,7 +761,7 @@ async function hitoSave(h,isNew){ const row={id:h.id,fecha:isoDay(h.d),texto:h.t
 async function hitoDelete(id){ const r=await sb.from('hitos').delete().eq('id',id).select(); if(r.error) throw r.error; if(!r.data||!r.data.length) throw new Error('solo quien creó el hito o un administrador puede eliminarlo'); }
 // ====== DATOS DESDE GITHUB (carpeta datos/ del repositorio) ======
 const GH_CFG=window.SUPABASE_CONFIG||{};
-const GH_DIR=GH_CFG.carpeta||'datos', DG_V='dg2:';
+const GH_DIR=GH_CFG.carpeta||'datos', DG_V='dg3:';
 function ghRepo(){ if(GH_CFG.repo) return GH_CFG.repo; const m=location.hostname.match(/^([^.]+)\.github\.io$/); const seg=location.pathname.split('/').filter(Boolean)[0]; return (m&&seg)?m[1]+'/'+seg:null; }
 function fechaEnNombre(n){ /* dd_mm_aaaa, aaaa_mm_dd o aaaammdd dentro del nombre del archivo */
   const ok=(y,m,d)=>(y>=2020&&y<=2100&&m>=1&&m<=12&&d>=1&&d<=31)?Date.UTC(y,m-1,d)/DAY:null; let m,r;
@@ -761,7 +774,7 @@ async function ghDigest(name,buf){ /* convierte un Excel en un resumen chico, qu
   const pn=names.find(n=>n.trim().toLowerCase()==='cheques pendientes');
   if(pn){ const keep=[pn].concat(names.filter(n=>/gesti/i.test(n)||/reporte de cheques/i.test(n.trim())));
     const wb=XLSX.read(buf,{type:'array',sheets:keep}); const ru=parseReporteUMV(wb); const g=parseGestion(wb,name,ru&&ru.fx);
-    return {t:'g',day:g.day,items:g.items,umv:(ru&&ru.n)?{m:ru.m,fx:ru.fx,n:ru.n}:null}; }
+    return {t:'g',day:g.day,items:g.items,prev:g.prev,umv:(ru&&ru.n)?{m:ru.m,fx:ru.fx,n:ru.n}:null}; }
   const rsh=names.find(n=>/c-?riesgo/i.test(n)); const wb=XLSX.read(buf,Object.assign({type:'array',cellDates:false},rsh?{sheets:[rsh]}:{}));
   const tp=parseTenencia(wb,name);
   if(tp) return {t:'e',kind:tp.kind,libOnly:tp.libOnly,live:tp.live,n:tp.n,map:tp.map};
@@ -781,7 +794,7 @@ function ghFold(digs,errs,list){ /* arma los datos a partir de los resúmenes de
   let reg=null; digs.forEach(x=>{ if(x.d.t==='r'&&(!reg||x.d.maxC>=reg.d.maxC)) reg=x; });   // registro: el de concertación más reciente
   if(reg){ REG=buildRegistry(reg.d.rows); info.registro=reg.f.name; }
   const gs=digs.filter(x=>x.d.t==='g').sort((a,b)=>a.d.day-b.d.day||a.f.name.localeCompare(b.f.name));
-  gs.forEach(x=>{ SNAPS[x.d.day]=x.d.items; const u=x.d.umv; if(u&&u.n){ if(x.d.day>=(UMV.day||0)){ Object.assign(UMV.m,u.m); UMV.fx=u.fx; UMV.day=x.d.day; } else { for(const k in u.m) if(!UMV.m[k]) UMV.m[k]=u.m[k]; } } });
+  gs.forEach(x=>{ SNAPS[x.d.day]=x.d.items; if(x.d.prev!=null) PREV[x.d.day]=x.d.prev; const u=x.d.umv; if(u&&u.n){ if(x.d.day>=(UMV.day||0)){ Object.assign(UMV.m,u.m); UMV.fx=u.fx; UMV.day=x.d.day; } else { for(const k in u.m) if(!UMV.m[k]) UMV.m[k]=u.m[k]; } } });
   info.gestion=gs.length;
   let latest=reg?reg.d.maxC:0; gs.forEach(x=>{ if(x.d.day>latest) latest=x.d.day; });
   const es=digs.filter(x=>x.d.t==='e'); es.forEach(x=>{ const a=fechaEnNombre(x.f.name); if(a!=null&&a>latest) latest=a; });
@@ -791,7 +804,7 @@ function ghFold(digs,errs,list){ /* arma los datos a partir de los resúmenes de
   info.propios=ee.filter(x=>!x.d.libOnly).length; META.gh=Object.assign(META.gh||{},info); }
 async function loadFromGitHub(){
   const repo=ghRepo(); const ban=$('ghBanner'); const setL=t=>{ ban.textContent=t; ban.style.display=t?'block':'none'; };
-  REG=D0; SNAPS={}; SNAPP={}; LIBM={}; UMV={day:0,fx:null,m:{}}; META.gh={};
+  REG=D0; SNAPS={}; SNAPP={}; LIBM={}; UMV={day:0,fx:null,m:{}}; PREV={}; META.gh={};
   if(!repo){ META.gh.error='No pude determinar el repositorio de GitHub: completá "repo" en config.js.'; return; }
   let list=null;
   try{ setL('Consultando los archivos en GitHub…'); list=await ghList(repo,GH_DIR,0,[]); try{ localStorage.setItem('gh_list',JSON.stringify({t:Date.now(),list})); }catch(e){} }
@@ -811,7 +824,7 @@ async function loadFromGitHub(){
 async function kvGet(k){ const db=await idb(); return new Promise((res,rej)=>{ const r=db.transaction('kv').objectStore('kv').get(k); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
 async function kvSet(k,v){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
 async function kvDel(k){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction('kv','readwrite'); t.objectStore('kv').delete(k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
-async function persist(){ try{ await kvSet('registry',REG); await kvSet('snaps',SNAPS); await kvSet('snapsP',SNAPP); await kvSet('libm',LIBM); await kvSet('umv',UMV); return true; }catch(e){ return false; } }
+async function persist(){ try{ await kvSet('registry',REG); await kvSet('snaps',SNAPS); await kvSet('snapsP',SNAPP); await kvSet('libm',LIBM); await kvSet('umv',UMV); await kvSet('prev',PREV); return true; }catch(e){ return false; } }
 
 // ---------- Excel parsing ----------
 const norm=v=>String(v==null?'':v).trim();
@@ -860,7 +873,9 @@ function parseGestion(wb,fname,fx){
   if(gn){ const b=sheetRows(wb,gn); for(let i=0;i<Math.min(15,b.length)&&day==null;i++){ const t=norm(b[i]&&b[i][0]); const m=t.match(/informe.*?\bal\s+(\d{1,2}\/\d{1,2}\/\d{4})/i); if(m) day=toDay(m[1]); } }
   if(day==null){ const m=fname.match(/(\d{4})(\d{2})(\d{2})/); if(m) day=Date.UTC(+m[1],+m[2]-1,+m[3])/DAY; }
   if(day==null) day=todayD;
-  return {day,items}; }
+  let prev=null; if(gn){ const b=sheetRows(wb,gn); const k=x=>String(x==null?'':x).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+    for(let i=0;i<Math.min(120,b.length);i++){ const r=b[i]; if(r&&k(r[0])==='PREVISION INCOBRABLES'){ const v=+r[1]; if(isFinite(v)&&r[1]!==''&&r[1]!=null){ prev=Math.round(Math.abs(v)*100)/100; break; } } } }
+  return {day,items,prev}; }
 
 // ---------- carga de archivos ----------
 const tick=()=>new Promise(r=>setTimeout(r,20));
@@ -874,8 +889,8 @@ async function handleFiles(files){
       const pn=names.find(n=>n.trim().toLowerCase()==='cheques pendientes');
       if(pn){ const keep=[pn].concat(names.filter(n=>/gesti/i.test(n)||/reporte de cheques/i.test(n.trim())));
         const wb=XLSX.read(buf,{type:'array',sheets:keep}); const ru=parseReporteUMV(wb); const g=parseGestion(wb,f.name,ru&&ru.fx);
-        SNAPS[g.day]=g.items; let um=''; if(ru&&ru.n){ if(g.day>=(UMV.day||0)){ Object.assign(UMV.m,ru.m); UMV.fx=ru.fx; UMV.day=g.day; } else { for(const k in ru.m) if(!UMV.m[k]) UMV.m[k]=ru.m[k]; } um=' · pagarés USD (UMV): '+ru.n+' con valor pesificado (TC '+nf0.format(ru.fx)+')'; }
-        ok.push('GESTION al '+fmtDate(g.day)+': '+g.items.length+' cheques pendientes'+um); }
+        SNAPS[g.day]=g.items; if(g.prev!=null) PREV[g.day]=g.prev; let um=''; if(ru&&ru.n){ if(g.day>=(UMV.day||0)){ Object.assign(UMV.m,ru.m); UMV.fx=ru.fx; UMV.day=g.day; } else { for(const k in ru.m) if(!UMV.m[k]) UMV.m[k]=ru.m[k]; } um=' · pagarés USD (UMV): '+ru.n+' con valor pesificado (TC '+nf0.format(ru.fx)+')'; }
+        ok.push('GESTION al '+fmtDate(g.day)+': '+g.items.length+' cheques pendientes'+(g.prev!=null?' · previsión incobrables '+short(g.prev):' · sin previsión incobrables')+um); }
       else { const rsh=names.find(n=>/c-?riesgo/i.test(n)); const wb=XLSX.read(buf,Object.assign({type:'array',cellDates:false},rsh?{sheets:[rsh]}:{})); const tp=parseTenencia(wb,f.name);
         if(tp&&tp.libOnly){ Object.assign(LIBM,tp.map); ok.push((tp.kind==='#'?'Pagarés':tp.kind==='*'?'Cheques':'Instrumentos')+' FCI (detalle de libradores): '+nf0.format(Object.keys(tp.map).length)+' códigos'); continue; }
         if(tp){ Object.assign(LIBM,tp.map);
@@ -920,7 +935,7 @@ const dz=$('drop'); $('file').onchange=e=>{ handleFiles(e.target.files); e.targe
 ['dragenter','dragover'].forEach(ev=>window.addEventListener(ev,e=>{ e.preventDefault(); dz.classList.add('over'); if(ev==='dragenter') $('dataBody').style.display='block'; }));
 ['dragleave','drop'].forEach(ev=>window.addEventListener(ev,e=>{ e.preventDefault(); if(ev==='drop'||e.target===document.documentElement||!e.relatedTarget) dz.classList.remove('over'); }));
 window.addEventListener('drop',e=>{ if(e.dataTransfer&&e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
-$('btnReset').onclick=async()=>{ if(!confirm('¿Descartar lo que cargaste y volver a los datos incluidos en este archivo?')) return; try{ await kvDel('registry'); await kvDel('snaps'); await kvDel('snapsP'); await kvDel('libm'); await kvDel('umv'); }catch(e){} UMV=JSON.parse(JSON.stringify(UMV0)); LIBM=expandLib(LIB0); REG=D0; SNAPS=JSON.parse(JSON.stringify(SN0)); SNAPP=JSON.parse(JSON.stringify(SNP0)); setData(REG,SNAPS,SNAPP); update(); refreshStatus(); setMsg('Datos restablecidos.','ok'); };
+$('btnReset').onclick=async()=>{ if(!confirm('¿Descartar lo que cargaste y volver a los datos incluidos en este archivo?')) return; try{ await kvDel('registry'); await kvDel('snaps'); await kvDel('snapsP'); await kvDel('libm'); await kvDel('umv'); await kvDel('prev'); }catch(e){} PREV=JSON.parse(JSON.stringify(PREV0)); UMV=JSON.parse(JSON.stringify(UMV0)); LIBM=expandLib(LIB0); REG=D0; SNAPS=JSON.parse(JSON.stringify(SN0)); SNAPP=JSON.parse(JSON.stringify(SNP0)); setData(REG,SNAPS,SNAPP); update(); refreshStatus(); setMsg('Datos restablecidos.','ok'); };
 (async()=>{
   let ok=false; try{ ok=await authInit(); }catch(e){ $('authMsg').textContent='Error de conexión: '+(e.message||e); $('auth').style.display='flex'; }
   if(!ok) return;
