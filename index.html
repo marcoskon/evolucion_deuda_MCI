@@ -245,7 +245,7 @@ body.viewer #dataBody,body.viewer #btnData{display:none !important}
 
   <div class="card">
     <div class="chead"><h2 id="tTitle">Detalle</h2>
-      <div class="seg" id="segTbl"><button data-v="lib" class="on">por librador</button><button data-v="com">por comitente</button><button data-v="rie">por riesgo</button><button data-v="ops">operaciones</button><button data-v="mora">cheques en mora</button></div></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><div class="seg" id="segTbl"><button data-v="lib" class="on">por librador</button><button data-v="com">por comitente</button><button data-v="rie">por riesgo</button><button data-v="ops">operaciones</button><button data-v="mora">cheques en mora</button></div><button class="hbtn" id="btnXls" title="Descargar en Excel lo que muestra la tabla, con los filtros actuales">⬇ Descargar Excel</button></div></div>
     <div class="tscroll"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
     <div class="note">Hacé clic en una fila para filtrar por ese librador / comitente (con Ctrl+clic sumás varios comitentes). Montos en pesos nominales, tal cual figuran en el registro.</div>
   </div>
@@ -270,7 +270,7 @@ body.viewer #dataBody,body.viewer #btnData{display:none !important}
   <h3 id="mTitle">Nuevo hito</h3>
   <div class="f"><label>Fecha</label><input type="date" id="mDate"></div>
   <div class="f"><label>Comentario</label><textarea id="mText" placeholder="Ej.: Se refinancia la deuda · Cambio de calificación · Primer cheque rechazado…"></textarea></div>
-  <div class="f" id="mScopeBox"><label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink);font-weight:400"><input type="checkbox" id="mScope"> <span id="mScopeTxt"></span></label></div>
+  <div class="f" id="mScopeBox"><div class="note" id="mScopeTxt" style="margin:0"></div></div>
   <div class="acts"><button class="hbtn dng" id="mDel">Eliminar</button><span style="flex:1"></span><button class="hbtn" id="mCancel">Cancelar</button><button class="hbtn pri" id="mSave">Guardar</button></div>
 </div></div>
 <script>
@@ -521,8 +521,10 @@ bindTip('c2','tip2',x=>{ const g=G2; if(!g) return null; const d=g.d0+(x-M.l)/(g
 let HITOS=[]; let editing=null;
 const isoDay=d=>new Date(d*DAY).toISOString().slice(0,10);
 const dayIso=s=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m?Date.UTC(+m[1],+m[2]-1,+m[3])/DAY:null; };
-function curScope(){ return {com:S.com.size===1?D.com[[...S.com][0]]:null, lib:S.lib!=null?D.lib[S.lib]:null}; }
-function hitosVisible(){ const sc=curScope(); const ck=new Set([...S.com].map(i=>lkey(D.com[i]))); return HITOS.filter(h=>(h.com==null||ck.has(lkey(h.com)))&&(h.lib==null||lkey(h.lib)===lkey(sc.lib))).sort((a,b)=>a.d-b.d); }
+function comList(v){ if(v==null||v==='') return []; if(Array.isArray(v)) return v.filter(Boolean); const t=String(v).trim(); if(t[0]==='['){ try{ const a=JSON.parse(t); if(Array.isArray(a)) return a.map(String).filter(Boolean); }catch(e){} } return t?[t]:[]; }   /* un hito puede pertenecer a uno o varios comitentes */
+function comStore(v){ const l=comList(v); return l.length===0?null:l.length===1?l[0]:JSON.stringify(l); }
+function curScope(){ return {com:S.com.size?[...S.com].map(i=>D.com[i]):null, lib:S.lib!=null?D.lib[S.lib]:null}; }
+function hitosVisible(){ const sc=curScope(); const ck=new Set([...S.com].map(i=>lkey(D.com[i]))); return HITOS.filter(h=>{ const hc=comList(h.com); return (!hc.length||hc.some(n=>ck.has(lkey(n))))&&(h.lib==null||lkey(h.lib)===lkey(sc.lib)); }).sort((a,b)=>a.d-b.d); }
 async function saveHitos(){}
 function renderHitos(){
   const el=$('hlist'); const HV=hitosVisible();
@@ -531,19 +533,17 @@ function renderHitos(){
   const g=G1;
   el.style.display='block';
   el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><b style="font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)">Hitos</b><span><button id="hExp">Exportar</button><button id="hImp">Importar</button></span></div>'+
-   HV.map((h,n)=>{ const out=g&&(h.d<g.d0||h.d>g.d1); const sc=[h.com,h.lib].filter(Boolean).join(' · ');
+   HV.map((h,n)=>{ const out=g&&(h.d<g.d0||h.d>g.d1); const sc=[comList(h.com).join(', '),h.lib].filter(Boolean).join(' · ');
      return '<div class="hrow"><span class="hnum">'+(n+1)+'</span><span class="hd">'+fmtDate(h.d)+'</span><div class="ht">'+esc(h.t)+'<div class="hs">'+(sc?'Solo: '+esc(sc):'General')+(out?' · fuera del rango visible':'')+(h.a?' · por '+esc(h.a.split('@')[0]):'')+(h.e?' · editado por '+esc(h.e.split('@')[0]):'')+'</div></div><button data-id="'+h.id+'">Editar</button></div>'; }).join('');
   el.querySelectorAll('button[data-id]').forEach(b=>b.onclick=()=>openEditor(HITOS.find(h=>h.id===b.dataset.id)));
   $('hExp').onclick=()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(HITOS,null,1)],{type:'application/json'})); a.download='hitos_deuda.json'; a.click(); };
-  $('hImp').onclick=()=>{ const i=document.createElement('input'); i.type='file'; i.accept='.json'; i.onchange=async()=>{ try{ const arr=JSON.parse(await i.files[0].text()); if(!Array.isArray(arr)) throw 0; const ids=new Set(HITOS.map(h=>h.id)); arr.forEach(h=>{ if(h&&typeof h.d==='number'&&h.t&&!ids.has(h.id)) HITOS.push({id:h.id||('h'+Math.random().toString(36).slice(2)),d:h.d,t:String(h.t),com:h.com||null,lib:h.lib||null}); }); for(const h of HITOS.filter(x=>!ids.has(x.id))) await hitoSave(h,true); update(); }catch(e){ alert('El archivo no es un respaldo de hitos válido o no se pudo guardar.'); } }; i.click(); };
+  $('hImp').onclick=()=>{ const i=document.createElement('input'); i.type='file'; i.accept='.json'; i.onchange=async()=>{ try{ const arr=JSON.parse(await i.files[0].text()); if(!Array.isArray(arr)) throw 0; const ids=new Set(HITOS.map(h=>h.id)); arr.forEach(h=>{ if(h&&typeof h.d==='number'&&h.t&&!ids.has(h.id)) HITOS.push({id:h.id||('h'+Math.random().toString(36).slice(2)),d:h.d,t:String(h.t),com:comList(h.com).length?comList(h.com):null,lib:h.lib||null}); }); for(const h of HITOS.filter(x=>!ids.has(x.id))) await hitoSave(h,true); update(); }catch(e){ alert('El archivo no es un respaldo de hitos válido o no se pudo guardar.'); } }; i.click(); };
 }
 function openEditor(h){
   const sc=curScope(); const isNew=!h; editing=h||{id:'h'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),d:todayD,t:'',com:null,lib:null,_new:true};
   $('mTitle').textContent=isNew?'Nuevo hito':'Editar hito'; $('mDate').value=isoDay(editing.d); $('mText').value=editing.t; $('mDel').style.display=isNew?'none':'';
-  const has=sc.com||sc.lib; const cur=[sc.com,sc.lib].filter(Boolean).join(' · ');
-  $('mScopeBox').style.display=(has||editing.com||editing.lib)?'':'none';
-  $('mScopeTxt').textContent='Mostrar solo cuando esté seleccionado: '+(editing.com||editing.lib?[editing.com,editing.lib].filter(Boolean).join(' · '):cur);
-  $('mScope').checked=isNew?!!has:!!(editing.com||editing.lib);
+  const scope=isNew?sc:{com:comList(editing.com),lib:editing.lib}; const lbl=[comList(scope.com).join(', '),scope.lib].filter(Boolean).join(' · ');
+  $('mScopeTxt').innerHTML=lbl?('Este hito se muestra solo en: <b>'+esc(lbl)+'</b>'):'Este hito se muestra en todas las vistas (no hay comitente ni librador seleccionado).';
   $('modal').classList.add('open'); setTimeout(()=>$('mText').focus(),30);
 }
 function closeEditor(){ $('modal').classList.remove('open'); editing=null; }
@@ -552,7 +552,7 @@ $('modal').addEventListener('mousedown',e=>{ if(e.target===$('modal')) closeEdit
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('modal').classList.contains('open')) closeEditor(); });
 $('mSave').onclick=async()=>{ const d=dayIso($('mDate').value), t=$('mText').value.trim(); if(d==null){ $('mDate').focus(); return; } if(!t){ $('mText').focus(); return; }
   const h=editing; h.d=d; h.t=t;
-  if($('mScope').checked){ if(h._new){ const sc=curScope(); h.com=sc.com; h.lib=sc.lib; } } else { h.com=null; h.lib=null; }
+  if(h._new){ const sc=curScope(); h.com=sc.com; h.lib=sc.lib; }   /* el alcance es la selección actual de comitentes / librador */
   const wasNew=!!h._new; if(h._new){ delete h._new; HITOS.push(h); }
   closeEditor(); update(); try{ await hitoSave(h,wasNew); }catch(e){ alert('No se pudo guardar el hito: '+(e.message||e)); await loadHitos(); } update(); };
 $('mDel').onclick=async()=>{ if(!editing||!confirm('¿Eliminar este hito?')) return; const delId=editing.id; closeEditor(); try{ await hitoDelete(delId); HITOS=HITOS.filter(h=>h.id!==delId); }catch(e){ alert('No se pudo eliminar: '+(e.message||e)); } update(); };
@@ -577,6 +577,18 @@ $('rReset').onclick=()=>{ S.r0=S.r1=null; update(); };
 
 // ---------- KPIs ----------
 function moraOpen(r){ return r.s<=todayD&&todayD<r.e; }
+let TX=null;                       /* lo que muestra la tabla ahora (para descargar) */
+const xd=d=>d+25569;              /* día -> fecha de Excel */
+function downloadTable(){
+  if(!TX||!TX.rows.length){ alert('No hay datos en la tabla para descargar.'); return; }
+  const wb=XLSX.utils.book_new(); const ws=XLSX.utils.aoa_to_sheet([TX.head].concat(TX.rows));
+  const rg=XLSX.utils.decode_range(ws['!ref']); for(let R=1;R<=rg.e.r;R++) for(let C=0;C<TX.head.length;C++){ const c=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c&&TX.fmts[C]&&typeof c.v==='number') c.z=TX.fmts[C]; }
+  ws['!cols']=TX.widths.map(w=>({wch:w})); ws['!autofilter']={ref:ws['!ref']}; XLSX.utils.book_append_sheet(wb,ws,TX.sheet);
+  const rie=S.rie.size===D.rie.length?'Todos':[...S.rie].map(i=>D.rie[i]).join(', ');
+  const fil=[['Descargado',new Date().toLocaleString('es-AR')],['Vista',TX.title],['Fecha de corte (hoy)',fmtDate(todayD)],['Comitentes',S.com.size?[...S.com].map(i=>D.com[i]).join(', '):'Todos'],['Librador',S.lib!=null?D.lib[S.lib]:'Todos'],['Tipos de riesgo',rie],['Filas',TX.rows.length]];
+  const wf=XLSX.utils.aoa_to_sheet(fil); wf['!cols']=[{wch:22},{wch:90}]; XLSX.utils.book_append_sheet(wb,wf,'Filtros aplicados');
+  XLSX.writeFile(wb,TX.file+'_'+isoDay(todayD)+'.xlsx'); }
+$('btnXls').onclick=downloadTable;
 function prevision(){ const ds=Object.keys(PREV).map(Number).sort((a,b)=>b-a); return ds.length?{d:ds[0],m:PREV[ds[0]]}:null; }
 function moraKpi(mora,nmora,vivo){
   const pv=prevision(), aplica=pv&&S.com.size===0&&S.lib==null;
@@ -607,6 +619,9 @@ function table(C,vivoTot){
     $('tTitle').textContent='Cheques en mora'+(C.mo.length?' ('+nf0.format(C.mo.length)+')':'');
     const cols=['Cheque','Vencimiento','Días de mora','Estado','Comitente','Librador','Riesgo','Monto','Situación'];
     th.innerHTML='<tr>'+cols.map(c=>'<th style="cursor:default">'+c+'</th>').join('')+'</tr>';
+    { const mo2=C.mo.slice().sort((a,b)=>b.m-a.m); TX={sheet:'Cheques en mora',file:'cheques_en_mora',title:'Cheques en mora',head:cols,
+        rows:mo2.map(r=>{ const open=moraOpen(r), dias=(isFinite(r.e)?r.e:todayD)-r.s; return [r.ins,xd(r.s),dias,r.est||'',D.com[r.com],D.lib[r.lib],D.rie[r.rie],Math.round(r.m*100)/100,open?'En mora':'Regularizado '+fmtDate(r.e)]; }),
+        fmts:[null,'dd/mm/yyyy','0',null,null,null,null,'#,##0.00',null],widths:[16,13,12,24,36,36,18,18,24]}; }
     if(!C.mo.length){ tb.innerHTML='<tr><td colspan="9" class="nodata">Sin cheques en mora para esta selección</td></tr>'; return; }
     tb.innerHTML=C.mo.slice().sort((a,b)=>b.m-a.m).slice(0,500).map(r=>{ const open=moraOpen(r), dias=(isFinite(r.e)?r.e:todayD)-r.s; return '<tr><td>'+esc(r.ins)+'</td><td>'+fmtDate(r.s)+'</td><td>'+dias+'</td><td>'+esc(r.est||'')+'</td><td>'+esc(D.com[r.com])+'</td><td>'+esc(D.lib[r.lib])+'</td><td>'+esc(D.rie[r.rie])+'</td><td>'+money(r.m)+'</td><td>'+(open?'<span class="pill">en mora</span>':'<span class="pill ok">regularizado '+fmtDate(r.e)+'</span>')+'</td></tr>'; }).join('');
     return; }
@@ -618,6 +633,9 @@ function table(C,vivoTot){
     const MORAINS=new Set(C.mo.filter(moraOpen).map(r=>r.ins));
     const txt={ins:r=>r.ins||'',com:r=>D.com[r.com]||'',lib:r=>D.lib[r.lib]||'',rie:r=>D.rie[r.rie]||''};
     const all=C.rows.slice().sort((x,y)=>{ let v; if(txt[so.k]) v=txt[so.k](x).localeCompare(txt[so.k](y),'es'); else v=x[so.k]-y[so.k]; return v? so.d*v : y.m-x.m; });
+    TX={sheet:'Operaciones',file:'operaciones',title:'Operaciones',head:cols.map(c=>c[1]).concat(['Estado']),
+        rows:all.map(r=>[xd(r.c),xd(r.k),r.ins||'',D.com[r.com],D.lib[r.lib],D.rie[r.rie],Math.round(r.m*100)/100,MORAINS.has(r.ins)?'En mora':(r.k>todayD?'Vigente':'Cobrada')]),
+        fmts:['dd/mm/yyyy','dd/mm/yyyy',null,null,null,null,'#,##0.00',null],widths:[14,14,18,36,36,18,18,12]};
     const rs=all.slice(0,S.olim);
     $('tTitle').textContent='Operaciones'+(all.length>rs.length?' (mostrando '+nf0.format(rs.length)+' de '+nf0.format(all.length)+')':' ('+nf0.format(all.length)+')');
     tb.innerHTML=rs.map(r=>'<tr><td>'+fmtDate(r.c)+'</td><td>'+fmtDate(r.k)+(r.k<=todayD?'':' <small style="color:var(--today)">vigente</small>')+'</td><td>'+esc(r.ins)+'</td><td>'+esc(D.com[r.com])+'</td><td>'+esc(D.lib[r.lib])+'</td><td>'+esc(D.rie[r.rie])+'</td><td>'+money(r.m)+(MORAINS.has(r.ins)?' <span class="pill">mora</span>':'')+'</td></tr>').join('')
@@ -641,7 +659,11 @@ function table(C,vivoTot){
   tb.innerHTML=arr.slice(0,400).map(a=>'<tr class="'+(t==='rie'?'':'click')+(t==='com'&&S.com.has(a.g)?' selrow':'')+'" data-g="'+a.g+'"><td>'+esc(a.name)+'</td><td>'+money(a.saldo)+'<span class="bar" style="width:'+Math.round(a.saldo/mxs*60)+'px"></span></td><td class="'+(a.mora?'bad':'')+'">'+(a.mora?money(a.mora):'—')+'</td><td>'+nf1.format(a.pct*100)+'%</td><td>'+money(a.pico)+'</td><td>'+money(a.tomado)+'</td><td>'+a.vivas+'</td><td>'+money(a.prox)+'</td></tr>').join('');
   { const sub=(t==='com'&&S.com.size>0)?arr.filter(a=>S.com.has(a.g)):arr; const T={saldo:0,mora:0,tomado:0,vivas:0,prox:0,pct:0}; sub.forEach(a=>{ T.saldo+=a.saldo; T.mora+=a.mora; T.tomado+=a.tomado; T.vivas+=a.vivas; T.prox+=a.prox; T.pct+=a.pct; });
     const lbl=(t==='com'&&S.com.size>0)?'Subtotal de los seleccionados':'Subtotal'; th.insertAdjacentHTML('beforeend','<tr class="subrow"><td>'+lbl+' ('+nf0.format(sub.length)+')</td><td>'+money(T.saldo)+'</td><td class="'+(T.mora?'bad':'')+'">'+(T.mora?money(T.mora):'—')+'</td><td>'+nf1.format(T.pct*100)+'%</td><td>—</td><td>'+money(T.tomado)+'</td><td>'+nf0.format(T.vivas)+'</td><td>'+money(T.prox)+'</td></tr>');
-    th.closest('table').style.setProperty('--hh',(th.rows[0]?th.rows[0].offsetHeight:0||32)+'px'); }
+    th.closest('table').style.setProperty('--hh',(th.rows[0]?th.rows[0].offsetHeight:0||32)+'px');
+    const ttl='Detalle '+(t==='lib'?'por librador':t==='com'?'por comitente':'por tipo de riesgo');
+    TX={sheet:ttl.slice(0,31),file:'detalle_'+(t==='lib'?'por_librador':t==='com'?'por_comitente':'por_riesgo'),title:ttl,head:['Nombre','Deuda hoy','En mora hoy','% saldo','Pico','Total tomado','Ops vivas','Vence 30d'],
+      rows:sub.map(a=>[a.name,Math.round(a.saldo*100)/100,Math.round(a.mora*100)/100,a.pct,Math.round(a.pico*100)/100,Math.round(a.tomado*100)/100,a.vivas,Math.round(a.prox*100)/100]).concat([[lbl,Math.round(T.saldo*100)/100,Math.round(T.mora*100)/100,T.pct,null,Math.round(T.tomado*100)/100,T.vivas,Math.round(T.prox*100)/100]]),
+      fmts:[null,'#,##0.00','#,##0.00','0.0%','#,##0.00','#,##0.00','0','#,##0.00'],widths:[44,20,20,10,20,20,10,20]}; }
   tb.querySelectorAll('tr.click').forEach(tr=>tr.onclick=ev=>{ const g=+tr.dataset.g; if(t==='com'){ if(ev.ctrlKey||ev.metaKey){ if(S.com.has(g)) S.com.delete(g); else S.com.add(g); update(); return; } S.com=new Set([g]); } else S[t]=g; update(); window.scrollTo({top:0,behavior:'smooth'}); });
 }
 
@@ -754,8 +776,8 @@ async function authInit(){
   $('who').textContent=USER.email+(IS_ADMIN?' · administrador':''); $('btnOut').onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
   return true; }
 async function loadHitos(){ const r=await sb.from('hitos').select('*').order('fecha',{ascending:true}); if(r.error) throw r.error;
-  HITOS=(r.data||[]).map(x=>({id:x.id,d:dayIso(String(x.fecha).slice(0,10)),t:x.texto,com:x.comitente,lib:x.librador,a:x.autor_email,e:x.editado_por})); }
-async function hitoSave(h,isNew){ const row={id:h.id,fecha:isoDay(h.d),texto:h.t,comitente:h.com||null,librador:h.lib||null};
+  HITOS=(r.data||[]).map(x=>({id:x.id,d:dayIso(String(x.fecha).slice(0,10)),t:x.texto,com:(l=>l.length?l:null)(comList(x.comitente)),lib:x.librador,a:x.autor_email,e:x.editado_por})); }
+async function hitoSave(h,isNew){ const row={id:h.id,fecha:isoDay(h.d),texto:h.t,comitente:comStore(h.com),librador:h.lib||null};
   if(isNew){ row.autor_email=USER.email; const r=await sb.from('hitos').insert(row).select(); if(r.error) throw r.error; h.a=USER.email; }
   else { row.actualizado=new Date().toISOString(); row.editado_por=USER.email; const r=await sb.from('hitos').update(row).eq('id',h.id).select(); if(r.error) throw r.error; if(!r.data||!r.data.length) throw new Error('no tenés permiso para editar este hito'); h.e=USER.email; } }
 async function hitoDelete(id){ const r=await sb.from('hitos').delete().eq('id',id).select(); if(r.error) throw r.error; if(!r.data||!r.data.length) throw new Error('solo quien creó el hito o un administrador puede eliminarlo'); }
